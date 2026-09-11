@@ -7,6 +7,8 @@ Requires a live Postgres (alembic upgrade head first). Run:
 import asyncio
 import json
 
+from sqlalchemy import select
+
 from app.api.services import get_payment_service
 from app.core.security import hash_password
 from app.db.session import async_session_factory
@@ -46,9 +48,9 @@ SCENARIOS = [
 async def _seed() -> None:
     service = get_payment_service()
     async with async_session_factory() as db:
-        user = await db.scalar(__import__("sqlalchemy").select(User).where(User.email == DEMO_EMAIL))
+        user = await db.scalar(select(User).where(User.email == DEMO_EMAIL))
         if user is None:
-            user = User(email=DEMO_EMAIL, hashed_password=hash_password(DEMO_PASSWORD), full_name="Demo User", is_active=True)
+            user = User(email=DEMO_EMAIL, password_hash=hash_password(DEMO_PASSWORD), full_name="Demo User", is_active=True)
             db.add(user)
             await db.commit()
             await db.refresh(user)
@@ -57,9 +59,15 @@ async def _seed() -> None:
             print("Demo user already exists")
 
         for row in SCENARIOS:
-            recipient = Recipient(**row["recipient"], user_id=user.id, name=row["name"])
-            db.add(recipient)
-            await db.flush()
+            recipient = await db.scalar(
+                select(Recipient).where(
+                    Recipient.user_id == user.id, Recipient.account_number == row["recipient"]["account_number"]
+                )
+            )
+            if recipient is None:
+                recipient = Recipient(**row["recipient"], user_id=user.id, name=row["name"])
+                db.add(recipient)
+                await db.flush()
             payment = await service.create_payment(db, user, PaymentCreate(**{**row["payment"], "recipient_id": recipient.id}))
             payment = await service.analyze_and_route(db, payment, user)
             await db.refresh(payment)
