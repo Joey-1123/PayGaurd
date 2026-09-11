@@ -17,7 +17,7 @@ class Payment(Base, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("recipients.id"), nullable=True
     )
     amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
-    currency: Mapped[str] = mapped_column(String(3), default="USD")
+    currency: Mapped[str] = mapped_column(String(3), default="INR")
     description: Mapped[str | None] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(String(50), default="pending", index=True)
     risk_score: Mapped[float | None] = mapped_column(Float)

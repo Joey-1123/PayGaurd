@@ -17,8 +17,11 @@ SEVERITY_BY_LEVEL = {
 
 
 async def build_features(db: AsyncSession, user: User, payment: Payment, recipient: Recipient | None) -> PaymentFeatures:
-    avg = await db.scalar(select(func.avg(Payment.amount)).where(Payment.user_id == user.id)) or 0.0
     count = await db.scalar(select(func.count()).select_from(Payment).where(Payment.user_id == user.id)) or 0
+    avg_query = select(func.avg(Payment.amount)).where(Payment.user_id == user.id)
+    if payment.recipient_id is not None:
+        avg_query = avg_query.where(Payment.recipient_id == payment.recipient_id)
+    avg = await db.scalar(avg_query) or 0.0
     return PaymentFeatures(
         amount=float(payment.amount),
         currency=payment.currency,
