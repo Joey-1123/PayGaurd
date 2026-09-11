@@ -15,8 +15,9 @@ import type { PayGuardThreatAlert, RiskAssessmentResult } from '@/types/payGuard
 // ⚙️ CONFIG
 // ─────────────────────────────────────────────
 
-const WS_URL =
-  process.env.EXPO_PUBLIC_WS_URL ?? 'http://localhost:8000';
+import { NGROK_BACKEND_URL } from '@/constants/apiConfig';
+
+const WS_URL = NGROK_BACKEND_URL;
 
 // ─────────────────────────────────────────────
 // 🔌 SOCKET INSTANCE

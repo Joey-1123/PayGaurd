@@ -27,10 +27,9 @@ import type {
 
 // WHY USE A CONSTANT HERE?
 // During the hackathon, we swap this with the ngrok tunnel URL.
-// e.g. "https://abc123.ngrok-free.app/api/v1"
-// You only change this ONE line.
-const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
+import { API_BASE_URL } from '@/constants/apiConfig';
+
+const BASE_URL = API_BASE_URL;
 
 // ─────────────────────────────────────────────
 // 🏗️ AXIOS INSTANCE
