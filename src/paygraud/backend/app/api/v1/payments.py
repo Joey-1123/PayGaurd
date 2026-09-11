@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.api.services import get_payment_service
+from app.config import get_settings
 from app.core.exceptions import business_error
 from app.db.session import get_db
 from app.models.model_result import ModelResult
@@ -63,6 +64,15 @@ async def analyze_payment(
     payment = await db.get(Payment, payment_id)
     if payment is None or payment.user_id != user.id:
         raise business_error("NOT_FOUND", "Payment not found", 404)
+    if get_settings().async_analysis:
+        from app.services.payment_saga import Status
+        from app.worker import payment_analyze
+
+        payment.status = Status.ANALYZING.value
+        await db.commit()
+        payment_analyze.delay(str(payment.id))
+        await db.refresh(payment)
+        return payment
     return await service.analyze_and_route(db, payment, user)
 
 
