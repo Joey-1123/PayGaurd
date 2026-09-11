@@ -18,4 +18,4 @@ def get_orchestrator() -> Orchestrator:
 
 @lru_cache
 def get_payment_service() -> PaymentService:
-    return PaymentService(gateway=get_gateway(), orchestrator=get_orchestrator(), publisher=manager.publish)
+    return PaymentService(gateway=get_gateway(), orchestrator=get_orchestrator(), publisher=manager.publish_remote)
