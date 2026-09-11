@@ -29,7 +29,7 @@ export interface PayGuardRegisterPayload {
 export interface PayGuardAuthResponse {
   identity: PayGuardIdentity;
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;
 }
 
 // ─────────────────────────────────────────────
@@ -79,13 +79,7 @@ export interface RiskAssessmentResult {
 // ─────────────────────────────────────────────
 
 export type RiskLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-export type ThreatCategory =
-  | 'FRAUD_RING_DETECTED'
-  | 'UNUSUAL_LOCATION'
-  | 'VELOCITY_SPIKE'
-  | 'NEW_RECIPIENT'
-  | 'SOCIAL_ENGINEERING'
-  | 'ACCOUNT_TAKEOVER';
+export type ThreatCategory = string;
 
 export type RiskDecision = 'APPROVE' | 'CONFIRM' | 'VERIFY' | 'BLOCK';
 
@@ -141,4 +135,96 @@ export interface PayGuardPaginatedResponse<T> {
   total: number;
   page: number;
   pageSize: number;
+}
+
+// ─────────────────────────────────────────────
+// 7. Real backend DTOs (FastAPI response shapes)
+// ─────────────────────────────────────────────
+
+export interface PayGuardApiUser {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  account_type: string;
+}
+
+export interface PayGuardApiToken {
+  access_token: string;
+  token_type: string;
+}
+
+export interface PayGuardApiPayment {
+  id: string;
+  recipient_id: string | null;
+  amount: number;
+  currency: string;
+  description: string | null;
+  status: string;
+  risk_score: number | null;
+  risk_level: string | null;
+  confidence: number | null;
+  recommendation: string | null;
+  human_confirmed: boolean;
+  gateway_reference: string | null;
+  created_at: string;
+}
+
+export interface PayGuardApiAlert {
+  id: string;
+  payment_id: string | null;
+  alert_type: string;
+  severity: string;
+  risk_score: number;
+  title: string | null;
+  description: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface PayGuardApiRecipient {
+  id: string;
+  name: string;
+  account_number: string;
+  bank_name: string | null;
+  is_verified: boolean;
+  verification_level: string;
+  risk_score: number;
+  risk_category: string;
+  previous_transaction_count: number;
+}
+
+export type PayGuardSignalAction = 'ignore' | 'alert' | 'reject';
+
+export interface PayGuardApiSignal {
+  id: string;
+  channel: string;
+  sender: string;
+  body: string;
+  extracted_link: string | null;
+  link_domain: string | null;
+  flags: string[] | null;
+  risk_score: number | null;
+  risk_level: string | null;
+  action: string | null;
+  status: string;
+  created_at: string;
+}
+
+/**
+ * Client-side mirror of an inbound SMS/notification that went through the
+ * backend signal scorer. Used by the SMS capture screen and threat stream.
+ */
+export interface PayGuardInboundSignal {
+  signalId: string;
+  channel: string;
+  sender: string;
+  body: string;
+  linkDomain?: string;
+  flags: string[];
+  riskScore: number;
+  riskLevel: RiskLevel;
+  action: PayGuardSignalAction;
+  status: string;
+  createdAt: string;
 }

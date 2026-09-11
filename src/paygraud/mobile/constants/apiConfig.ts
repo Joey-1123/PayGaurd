@@ -1,15 +1,20 @@
 // Location: constants/apiConfig.ts
-// 🚨 PASTE YOUR NGROK BACKEND URL HERE 🚨
+// PayGuard backend endpoint configuration.
+//
+// Set EXPO_PUBLIC_NGROK_URL to your live ngrok tunnel (or LAN IP) when running
+// on a physical device, e.g.:
+//   $env:EXPO_PUBLIC_NGROK_URL="https://7a3b-103-211-54-12.ngrok-free.app"
+// Falls back to the local emulator-friendly default when unset.
+// (Do not include a trailing slash.)
 
-/**
- * Replace this URL with your live ngrok tunnel URL whenever you restart ngrok!
- * Example: 'https://7a3b-103-211-54-12.ngrok-free.app'
- * (Do not include a trailing slash)
- */
-export const NGROK_BACKEND_URL = 'http://localhost:8000';
+const DEFAULT_BACKEND_URL = 'http://localhost:8000';
 
-// The full API path used by PayGuard Network Client
+export const NGROK_BACKEND_URL: string =
+  process.env.EXPO_PUBLIC_NGROK_URL?.replace(/\/$/, '') || DEFAULT_BACKEND_URL;
+
+// REST base for all PayGuard API calls.
 export const API_BASE_URL = `${NGROK_BACKEND_URL}/api/v1`;
 
-// WebSocket URL for real-time security alerts
-export const WS_BASE_URL = NGROK_BACKEND_URL.replace(/^http/, 'ws');
+// WebSocket endpoint for the real-time shield stream (raw FastAPI WS,
+// authenticated via `?token=<jwt>`).
+export const WS_STREAM_URL = `${NGROK_BACKEND_URL.replace(/^http/, 'ws')}/api/v1/ws`;
