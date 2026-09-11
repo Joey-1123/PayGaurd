@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Repo status
-Hackathon build in progress on branch `backend`. Planning docs live in `local/` (all `*.md` + PDF) and are **gitignored**. Tracked root files: `project_plan.md`, `.gitignore`, `AGENTS.md`. Branches: `main` (PR-protected), `backend`, `frontend_web`, `mobile`.
+Hackathon build in progress on branch `backend`. Planning docs live in `local/` (all `*.md` + PDF) and are **gitignored**. Tracked root files: `AGENTS.md`, `README.md`, `.gitignore`, `LICENSE`; `docs/project_plan.md` is tracked. Branches: `main` (PR-protected), `backend`, `frontend_web`, `mobile`.
 
 ## Commits (hard rules)
 - **Max 100 LOC per commit** (net diff). Target ~50 LOC. If a change exceeds this, split it into multiple logical commits.
@@ -9,13 +9,17 @@ Hackathon build in progress on branch `backend`. Planning docs live in `local/` 
 - Only commit when explicitly asked. Never commit anything from `local/`.
 - Repo-level auth: `Joey-1123 <shubhampanchal9168@gmail.com>`. Author must stay `Joey-1123` — do not change git config.
 
+## Repo layout
+- Target architecture (mirrors main): `src/paygraud/backend`, `src/paygraud/frontend/web`, `src/paygraud/mobile`, plus `docs/`, `screenshot/`, `data/`, `requirements.txt`, `README.md`, `LICENSE` at root.
+- Branch → directory mapping: `backend` → `src/paygraud/backend`, `frontend_web` → `src/paygraud/frontend/web`, `mobile` → `src/paygraud/mobile`. PRs must land code in the matching directory.
+
 ## Backend build state
-- `backend/` uses **uv** as package manager + venv (`.venv`). Python 3.14 local.
+- `src/paygraud/backend/` uses **uv** as package manager + venv (`.venv`). Python 3.14 local.
 - Bootstrap: `uv sync --group dev`. Run: `uv run uvicorn app.main:app --reload` (docs at `/docs`, health at `/health`).
 - Migrations: `uv run alembic revision --autogenerate`, `uv run alembic upgrade head`. Migration generation needs a live Postgres.
-- Env: `backend/.env` for secrets (DB URL, OPENAI/ANTHROPIC keys). Config in `app/config.py` (pydantic-settings).
+- Env: `src/paygraud/backend/.env` for secrets (DB URL, OPENAI/ANTHROPIC keys). Config in `app/config.py` (pydantic-settings).
 - Async SQLAlchemy 2.0 + `asyncpg`. Do NOT use sync engine patterns.
-- DB is `postgres:16` via `docker-compose.yml` at repo root (db + redis). Docker Desktop/WSL may need to be started first; local `postgresql-x64-18` also exists as a fallback.
+- DB is `postgres:16` via `docker-compose.yml` at `src/paygraud/backend/` (db + redis). Docker Desktop/WSL may need to be started first; local `postgresql-x64-18` also exists as a fallback.
 
 ## Reference docs
 - `local/BACKEND.md` — backend plan (FastAPI, SQLAlchemy 2.0, PostgreSQL 16, Redis, Celery)
