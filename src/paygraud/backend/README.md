@@ -67,3 +67,20 @@ uv run python -m scripts.seed_demo_scenarios
 Creates one user and four payments covering the demo narrative: LOW
 (auto-approve), MEDIUM (confirmation required), HIGH (2FA verification) and
 CRITICAL (blocked before authorize).
+
+## SMS interception (real-world scam detection)
+
+`POST /api/v1/signals/sms` ingests real inbound messages captured on the
+phone, scores them for phishing/impersonation/payment-scam signals, and
+routes: LOW → ignore, MEDIUM → alert, HIGH/CRITICAL → reject (quarantine
++ push via WebSocket).
+
+Legit OTPs from known bank shortcodes with no link or payment request are
+auto-classified as LOW (no alert).
+
+**Legit shortcode allowlist** lives in
+`app/services/ingest/extractor.py` → `KNOWN_LEGIT_SHORTCODES`; add new
+bank shortcodes there as needed.
+
+**Known-legit domain list** for link scoring lives in
+`app/models_ai/signal_scorer.py` → `KNOWN_LEGIT_DOMAINS`.
