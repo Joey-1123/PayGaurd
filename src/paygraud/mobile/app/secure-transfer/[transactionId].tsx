@@ -1,7 +1,7 @@
 // Location: app/secure-transfer/[transactionId].tsx
 // Pure Black & White Minimalist Transaction Audit & Risk Breakdown
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -15,12 +15,48 @@ import {
 } from '@/components/icons/PayGuardIcons';
 import { MOCK_TRANSFERS } from '@/utils/mockData';
 import { formatPayGuardCurrency, formatPayGuardDate, formatPayGuardTime } from '@/utils/payGuardFormatters';
+import { PayGuardNetworkClient } from '@/services/PayGuardNetworkClient';
+import type { PayGuardSecureTransfer } from '@/types/payGuardModels';
+
+interface ModelBreakdown {
+  model: string;
+  risk_score: number;
+  verdict: string;
+  flags: string[];
+}
 
 export default function TransactionDetailScreen() {
   const { transactionId } = useLocalSearchParams<{ transactionId: string }>();
-  const transfer = MOCK_TRANSFERS.find((t) => t.transferId === transactionId) ?? MOCK_TRANSFERS[0];
+  const [transfer, setTransfer] = useState<PayGuardSecureTransfer | null>(null);
+  const [models, setModels] = useState<ModelBreakdown[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const isBlocked = transfer.transferStatus === 'BLOCKED_BY_SHIELD';
+  useEffect(() => {
+    if (!transactionId) return;
+    let cancelled = false;
+    setLoading(true);
+
+    PayGuardNetworkClient.fetchTransferById(transactionId)
+      .then((t) => { if (!cancelled) setTransfer(t); })
+      .catch(() => { if (!cancelled) setTransfer(MOCK_TRANSFERS.find((m) => m.transferId === transactionId) ?? MOCK_TRANSFERS[0]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    // Best-effort fetch of the multi-model breakdown (GET /payments/:id/risk).
+    PayGuardNetworkClient.fetchTransferById(transactionId)
+      .then(async () => {
+        const res = await fetch(`${process.env.EXPO_PUBLIC_NGROK_URL ?? 'http://localhost:8000'}/api/v1/payments/${transactionId}/risk`);
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setModels(data.models ?? []);
+        }
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [transactionId]);
+
+  const safeTransfer = transfer ?? MOCK_TRANSFERS.find((t) => t.transferId === transactionId) ?? MOCK_TRANSFERS[0];
+  const isBlocked = safeTransfer.transferStatus === 'BLOCKED_BY_SHIELD';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -53,12 +89,12 @@ export default function TransactionDetailScreen() {
           </View>
 
           <Text style={[styles.heroAmount, isBlocked && styles.heroAmountBlocked]}>
-            -{formatPayGuardCurrency(transfer.amount, transfer.currencyCode)}
+            -{formatPayGuardCurrency(safeTransfer.amount, safeTransfer.currencyCode)}
           </Text>
 
-          <Text style={styles.beneficiaryName}>{transfer.beneficiaryName}</Text>
+          <Text style={styles.beneficiaryName}>{safeTransfer.beneficiaryName}</Text>
           <Text style={styles.timestamp}>
-            {formatPayGuardDate(transfer.initiatedAt)} at {formatPayGuardTime(transfer.initiatedAt)}
+            {formatPayGuardDate(safeTransfer.initiatedAt)} at {formatPayGuardTime(safeTransfer.initiatedAt)}
           </Text>
         </View>
 
@@ -73,31 +109,39 @@ export default function TransactionDetailScreen() {
             <View style={styles.scoreItem}>
               <Text style={styles.scoreLabel}>Risk Score</Text>
               <Text style={[styles.scoreValue, isBlocked && { color: '#FF2A2A' }]}>
-                {transfer.riskAssessmentScore}/100
+                {safeTransfer.riskAssessmentScore}/100
               </Text>
             </View>
-            <View style={styles.scoreDivider} />
-            <View style={styles.scoreItem}>
-              <Text style={styles.scoreLabel}>OpenAI Model</Text>
-              <Text style={styles.scoreSubVal}>
-                {isBlocked ? 'FLAGGED (98)' : 'CLEARED (12)'}
-              </Text>
-            </View>
-            <View style={styles.scoreDivider} />
-            <View style={styles.scoreItem}>
-              <Text style={styles.scoreLabel}>Anthropic Model</Text>
-              <Text style={styles.scoreSubVal}>
-                {isBlocked ? 'FLAGGED (95)' : 'CLEARED (15)'}
-              </Text>
-            </View>
+            {models.length > 0
+              ? models.slice(0, 2).map((m, i) => (
+                  <React.Fragment key={m.model}>
+                    <View style={styles.scoreDivider} />
+                    <View style={styles.scoreItem}>
+                      <Text style={styles.scoreLabel}>{m.model}</Text>
+                      <Text style={styles.scoreSubVal}>
+                        {m.verdict.toUpperCase()} ({m.risk_score})
+                      </Text>
+                    </View>
+                  </React.Fragment>
+                ))
+              : (
+                  <>
+                    <View style={styles.scoreDivider} />
+                    <View style={styles.scoreItem}>
+                      <Text style={styles.scoreLabel}>Rule Engine</Text>
+                      <Text style={styles.scoreSubVal}>{isBlocked ? 'FLAGGED' : 'CLEARED'}</Text>
+                    </View>
+                  </>
+                )}
           </View>
 
           <View style={styles.analysisBox}>
             <Text style={styles.analysisLabel}>SAGA REASONING:</Text>
             <Text style={styles.analysisText}>
-              {isBlocked
-                ? 'High-confidence correlation with known invoice diversion campaign. Compensating transaction automatically executed.'
-                : 'Beneficiary bank route verified. Behavioral cadence matches account baseline.'}
+              {safeTransfer.riskExplanation
+                || (isBlocked
+                  ? 'Critical risk anomaly. Compensating transaction automatically executed.'
+                  : 'Beneficiary bank route verified. Behavioral cadence matches account baseline.')}
             </Text>
           </View>
         </View>
@@ -106,11 +150,11 @@ export default function TransactionDetailScreen() {
         <View style={styles.metaCard}>
           <View style={styles.metaRow}>
             <Text style={styles.metaKey}>Transaction ID</Text>
-            <Text style={styles.metaVal}>{transfer.transferId}</Text>
+            <Text style={styles.metaVal}>{safeTransfer.transferId}</Text>
           </View>
           <View style={styles.metaRow}>
             <Text style={styles.metaKey}>Beneficiary Account</Text>
-            <Text style={styles.metaVal}>{transfer.beneficiaryAccount ?? '•••• 8831'}</Text>
+            <Text style={styles.metaVal}>{safeTransfer.beneficiaryAccount ?? '•••• 8831'}</Text>
           </View>
           <View style={styles.metaRow}>
             <Text style={styles.metaKey}>Routing / Network</Text>
