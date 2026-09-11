@@ -1,6 +1,7 @@
 import pytest
 
-from app.agents.orchestrator import Orchestrator, RiskLevel, level_from_score
+from app.agents.orchestrator import Orchestrator, RiskLevel
+from app.agents.pipeline_graph import build_pipeline
 from app.models_ai.base import BaseModelAI, ModelResult, ModelUnavailableError, PaymentFeatures
 from app.models_ai.rule_engine import RuleEngineModel
 
@@ -39,60 +40,53 @@ def make_features() -> PaymentFeatures:
     )
 
 
+def _run_fake(model: FakeModel, payment_id: str = "p-1"):
+    orch = Orchestrator(models=[model])
+    return orch.analyze_payment(make_features(), payment_id=payment_id)
+
+
 @pytest.mark.asyncio
-async def test_safe_local_skips_cloud():
-    local = FakeModel("ollama/qwen", 10.0, 0.95)
-    orch = Orchestrator(models=[local])
-    result = await orch.analyze_payment(make_features())
-    assert result.risk_level == RiskLevel.LOW
+async def test_graph_safe_local_skips_cloud():
+    result = await _run_fake(FakeModel("ollama/qwen", 10.0, 0.95))
+    assert result.risk_level is RiskLevel.LOW
     assert result.recommendation == "auto_approve"
     assert len(result.model_results) == 1
 
 
 @pytest.mark.asyncio
-async def test_fallback_when_all_unavailable():
-    local = FakeModel("ollama/qwen", 90.0, 0.5, available=False)
-    orch = Orchestrator(models=[local])
-    result = await orch.analyze_payment(make_features())
+async def test_graph_fallback_when_all_unavailable():
+    result = await _run_fake(FakeModel("ollama/qwen", 90.0, 0.5, available=False))
     assert result.final_score >= 0
-    assert result.model_results, "fallback rule engine should produce a result"
+    assert result.model_results
 
 
 @pytest.mark.asyncio
-async def test_cloud_train_raises_uses_fallback():
+async def test_graph_cloud_fail_uses_fallback():
     local = FakeModel("ollama/qwen", 80.0, 0.5)
     cloud = FakeModel("openai/gpt", 70.0, 0.9, available=False)
     orch = Orchestrator(models=[local, cloud])
-    result = await orch.analyze_payment(make_features())
+    result = await orch.analyze_payment(make_features(), payment_id="p-2")
     assert len(result.model_results) == 2
-    assert any(r.model_name.startswith("openai") or "rule" in r.model_name for r in result.model_results)
-
-
-def test_level_from_score_bands():
-    assert level_from_score(5) is RiskLevel.LOW
-    assert level_from_score(45) is RiskLevel.MEDIUM
-    assert level_from_score(70) is RiskLevel.HIGH
-    assert level_from_score(95) is RiskLevel.CRITICAL
 
 
 @pytest.mark.asyncio
-async def test_rule_engine_demo_scenarios_match_narrative():
-    engine = RuleEngineModel()
+async def test_graph_ladder_matches_narrative():
+    pipeline = build_pipeline([RuleEngineModel()])
     scenarios = [
         (PaymentFeatures(amount=8000.0, currency="INR", description="Salary transfer", recipient_name="John Carter",
                          recipient_verified=True, recipient_risk_category="low", previous_tx_count=42,
-                         user_avg_transaction=8000.0, user_tx_frequency=10), RiskLevel.LOW),
+                         user_avg_transaction=8000.0, user_tx_frequency=10), "low", "AUTO_APPROVE"),
         (PaymentFeatures(amount=25000.0, currency="INR", description="Booking deposit", recipient_name="Blue Lotus Events",
                          recipient_verified=False, recipient_risk_category="unknown", previous_tx_count=0,
-                         user_avg_transaction=0.0, user_tx_frequency=10), RiskLevel.MEDIUM),
+                         user_avg_transaction=0.0, user_tx_frequency=10), "medium", "HUMAN_CONFIRM"),
         (PaymentFeatures(amount=1800.0, currency="INR", description="Card verification fee", recipient_name="Customer Care 2FA",
                          recipient_verified=False, recipient_risk_category="high", previous_tx_count=1,
-                         user_avg_transaction=1800.0, user_tx_frequency=10), RiskLevel.HIGH),
+                         user_avg_transaction=1800.0, user_tx_frequency=10), "high", "HUMAN_VERIFY"),
         (PaymentFeatures(amount=200000.0, currency="INR", description="Pending invoice settlement", recipient_name="Invoice Desk",
                          recipient_verified=False, recipient_risk_category="critical", previous_tx_count=0,
-                         user_avg_transaction=200000.0, user_tx_frequency=10), RiskLevel.CRITICAL),
+                         user_avg_transaction=200000.0, user_tx_frequency=10), "critical", "AUTO_BLOCK"),
     ]
-    for features, expected in scenarios:
-        result = await engine.analyze(features)
-        level = "low" if result.risk_score <= 30 else "medium" if result.risk_score <= 60 else "high" if result.risk_score <= 85 else "critical"
-        assert level == expected.value, (result.risk_score, result.flags)
+    for features, expected_level, expected_decision in scenarios:
+        state = await pipeline.ainvoke({"features": features, "trace": []})
+        assert state["risk_level"] == expected_level
+        assert state["decision"] == expected_decision

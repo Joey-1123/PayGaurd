@@ -16,3 +16,9 @@ class AlertOut(BaseModel):
     description: str | None
     status: str
     created_at: datetime
+
+
+class AlertStats(BaseModel):
+    total: int
+    by_severity: dict[str, int]
+    by_status: dict[str, int]

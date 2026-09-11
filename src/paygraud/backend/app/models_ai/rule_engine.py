@@ -22,15 +22,15 @@ class RuleEngineModel(BaseModelAI):
         score = 0.0
         flags: list[str] = []
 
-        if features.amount >= 10000:
+        if features.amount >= 100000:
             score += 40
             flags.append("high_amount")
-        elif features.amount >= 2000:
+        elif features.amount >= 25000:
             score += 25
             flags.append("elevated_amount")
 
         ratio = features.amount / features.user_avg_transaction if features.user_avg_transaction else 0.0
-        if ratio > 10 and features.amount > 2000:
+        if ratio > 10 and features.amount >= 25000:
             score += 20
             flags.append("unusual_amount_ratio")
 
@@ -51,7 +51,7 @@ class RuleEngineModel(BaseModelAI):
             score += min(35, 12 * len(hit))
             flags.append("urgency_social_engineering")
         imp = [p for p in IMPERSONATION_PATTERNS if p in text]
-        if imp and features.previous_tx_count == 0 and features.amount >= 2000:
+        if imp and (features.previous_tx_count == 0 or not features.recipient_verified):
             score += 25
             flags.append("possible_impersonation")
 

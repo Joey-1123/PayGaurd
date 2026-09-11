@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class PaymentCreate(BaseModel):
     recipient_id: uuid.UUID | None = None
     amount: float = Field(gt=0, le=1_000_000)
-    currency: str = Field(default="USD", min_length=3, max_length=3)
+    currency: str = Field(default="INR", min_length=3, max_length=3)
     description: str = Field(default="", max_length=500)
 
 

@@ -171,10 +171,10 @@
 ```
 [0:00] Intro — problem: payment scams happen in real time.
 [0:30] Show the 4 scenarios in the seed data (recipients list).
-[1:00] Scenario 1 — Pay $50 to "John Carter" (trusted) → INSTANT approve. "Why? 12 prior payments, verified."
-[2:00] Scenario 2 — Pay $500 to "Blue Lotus" (new) → confirmation prompt + risk factors shown. Explain human-in-loop.
-[3:00] Scenario 3 — Pay $5,000 to "Customer Care 2FA" → verification workflow, HIGH alert, explanation of urgency detection.
-[4:30] Scenario 4 — Pay $15,000 to "Invoice Desk" → BLOCKED instantly, critical alert. "Authorize never called — funds protected."
+[1:00] Scenario 1 — Pay ₹8,000 to "John Carter" (trusted) → INSTANT approve. "Why? 12 prior payments, verified."
+[2:00] Scenario 2 — Pay ₹25,000 to "Blue Lotus" (new) → confirmation prompt + risk factors shown. Explain human-in-loop.
+[3:00] Scenario 3 — Pay ₹1,800 to "Customer Care 2FA" → verification workflow, HIGH alert, explanation of urgency detection.
+[4:30] Scenario 4 — Pay ₹2,00,000 to "Invoice Desk" → BLOCKED instantly, critical alert. "Authorize never called — funds protected."
 [5:30] Show alerts page + audit history → prove explainability & audit trail.
 [6:30] Close — architecture summary slide (multi-model, human-in-loop, audit).
 ```

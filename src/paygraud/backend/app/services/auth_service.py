@@ -36,5 +36,10 @@ def issue_token(user: User) -> str:
     return create_access_token(subject=str(user.id))
 
 
+def refresh_token(token: str) -> str:
+    payload = decode_access_token(token)
+    return create_access_token(subject=str(payload["sub"]))
+
+
 def refresh_payload(token: str) -> dict:
     return decode_access_token(token)
