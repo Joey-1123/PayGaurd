@@ -1,29 +1,43 @@
-# Local planning docs (do not push)
-local/
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# Dependencies
+# dependencies
 node_modules/
-venv/
-.venv/
-__pycache__/
-*.pyc
 
-# Environment files
-.env
-.env.local
-.env.*.local
-
-# Build outputs
-.next/
-dist/
-build/
-*.tsbuildinfo
+# Expo
 .expo/
+dist/
+web-build/
+expo-env.d.ts
 
-# OS files
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
 .DS_Store
-Thumbs.db
+*.pem
 
-# IDE
-.idea/
-.vscode/
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+example
+
+# generated native folders
+/ios
+/android
