@@ -1,6 +1,7 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.core.security import create_access_token
 from app.main import app
 
 
@@ -33,3 +34,15 @@ async def test_unknown_route_is_404():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.get("/api/v1/nope")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_auth_refresh_roundtrip():
+    token = create_access_token(subject="00000000-0000-0000-0000-000000000001")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post("/api/v1/auth/refresh", json={"refresh_token": token})
+        bad = await client.post("/api/v1/auth/refresh", json={"refresh_token": "not-a-valid-jwt-token"})
+    assert resp.status_code == 200
+    assert resp.json()["token_type"] == "bearer"
+    assert resp.json()["access_token"]
+    assert bad.status_code == 401
