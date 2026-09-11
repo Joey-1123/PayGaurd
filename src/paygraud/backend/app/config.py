@@ -26,12 +26,17 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-3-5-sonnet-20241022"
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
+    openrouter_api_key: str = ""
+    openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
 
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:8081",
+        "https://*.ngrok-free.dev",   # ngrok free static domains come as .dev
         "https://*.ngrok-free.app",
     ]
 

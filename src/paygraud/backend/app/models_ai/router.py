@@ -1,14 +1,18 @@
 from app.config import get_settings
 from app.models_ai.anthropic_model import AnthropicModelAI
 from app.models_ai.base import BaseModelAI
+from app.models_ai.groq_model import GroqModelAI
 from app.models_ai.local_model import LocalModelAI
 from app.models_ai.openai_model import OpenAIModelAI
+from app.models_ai.openrouter_model import OpenRouterModelAI
 from app.models_ai.rule_engine import RuleEngineModel
 
 NAME_WEIGHTS = {
-    "openai/": 0.40,
-    "anthropic/": 0.35,
-    "ollama/": 0.25,
+    "openai/": 0.35,
+    "anthropic/": 0.30,
+    "groq/": 0.15,
+    "openrouter/": 0.10,
+    "ollama/": 0.10,
 }
 
 
@@ -20,6 +24,10 @@ def get_available_models() -> list[BaseModelAI]:
         models.append(OpenAIModelAI())
     if settings.anthropic_api_key:
         models.append(AnthropicModelAI())
+    if settings.groq_api_key:
+        models.append(GroqModelAI())
+    if settings.openrouter_api_key:
+        models.append(OpenRouterModelAI())
     return models
 
 
