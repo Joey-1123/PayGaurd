@@ -1,40 +1,90 @@
 // Location: app/(tabs)/_layout.tsx
-// PayGuard Main Tab Bar — Dashboard, Ledger, Threat Center, Preferences
+// Pure Black & White Minimalist Bottom Navigation Dock with Lucide Vector Icons
 
+import React from 'react';
 import { Tabs } from 'expo-router';
-import { PayGuardColors } from '@/constants/payGuardTheme';
+import { View, StyleSheet, Platform } from 'react-native';
+import { IconHome, IconQrCode, IconReceipt, IconShieldCheck } from '@/components/icons/PayGuardIcons';
 
-export default function PayGuardMainTabs() {
+function TabItem({
+  IconComponent,
+  focused,
+}: {
+  IconComponent: React.ComponentType<{ size: number; color: string; strokeWidth?: number }>;
+  focused: boolean;
+}) {
+  return (
+    <View style={styles.tabItem}>
+      <IconComponent
+        size={22}
+        color={focused ? '#FFFFFF' : '#666666'}
+        strokeWidth={focused ? 2.4 : 1.8}
+      />
+      {focused && <View style={styles.activePill} />}
+    </View>
+  );
+}
+
+export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: PayGuardColors.background.card,
-          borderTopColor: '#1F2937',
-          borderTopWidth: 1,
-        },
-        tabBarActiveTintColor: PayGuardColors.brand.primary,
-        tabBarInactiveTintColor: PayGuardColors.text.muted,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarStyle: styles.tabBar,
+        tabBarShowLabel: false,
       }}
     >
       <Tabs.Screen
         name="pg-dashboard"
-        options={{ title: 'Dashboard', tabBarLabel: 'Home' }}
-      />
-      <Tabs.Screen
-        name="pg-ledger"
-        options={{ title: 'Ledger', tabBarLabel: 'Ledger' }}
+        options={{
+          tabBarIcon: ({ focused }) => <TabItem IconComponent={IconHome} focused={focused} />,
+        }}
       />
       <Tabs.Screen
         name="pg-threat-center"
-        options={{ title: 'Alerts', tabBarLabel: 'Alerts' }}
+        options={{
+          tabBarIcon: ({ focused }) => <TabItem IconComponent={IconQrCode} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="pg-ledger"
+        options={{
+          tabBarIcon: ({ focused }) => <TabItem IconComponent={IconReceipt} focused={focused} />,
+        }}
       />
       <Tabs.Screen
         name="pg-preferences"
-        options={{ title: 'Settings', tabBarLabel: 'Settings' }}
+        options={{
+          tabBarIcon: ({ focused }) => <TabItem IconComponent={IconShieldCheck} focused={focused} />,
+        }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: '#000000',
+    borderTopColor: 'rgba(255, 255, 255, 0.12)',
+    borderTopWidth: 1,
+    height: Platform.OS === 'ios' ? 84 : 64,
+    paddingBottom: Platform.OS === 'ios' ? 22 : 8,
+    paddingTop: 8,
+    elevation: 0,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 60,
+    height: 44,
+    position: 'relative',
+  },
+  activePill: {
+    position: 'absolute',
+    bottom: -6,
+    width: 14,
+    height: 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 1,
+  },
+});
