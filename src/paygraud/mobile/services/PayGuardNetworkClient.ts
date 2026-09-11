@@ -220,6 +220,25 @@ export const PayGuardNetworkClient = {
     return paymentToTransfer(data);
   },
 
+  /**
+   * Multi-model risk breakdown for a transfer. GET /payments/:id/risk
+   * Returns null when the report is unavailable (backend offline / not found).
+   */
+  fetchRiskReport: async (
+    transferId: string
+  ): Promise<{ riskScore: number; riskLevel: string; models: Array<{ model: string; risk_score: number; verdict: string; flags: string[] }> } | null> => {
+    try {
+      const { data } = await client.get(`payments/${transferId}/risk`);
+      return {
+        riskScore: data.risk_score ?? 0,
+        riskLevel: data.risk_level ?? 'unknown',
+        models: Array.isArray(data.models) ? data.models : [],
+      };
+    } catch {
+      return null;
+    }
+  },
+
   // ─────────────────────────────────────────
   // 🚨 THREAT ALERTS
   // ─────────────────────────────────────────

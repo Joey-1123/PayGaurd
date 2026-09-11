@@ -1,5 +1,8 @@
 // Location: constants/payGuardTheme.ts
 // Pure Black & White Minimalist Design System (Monochrome Luxury)
+// Single source of truth — screens must never hardcode hex values.
+
+import { Platform } from 'react-native';
 
 export const PayGuardColors = {
   brand: {
@@ -15,10 +18,33 @@ export const PayGuardColors = {
     elevated: '#121212',
     card: '#0E0E0E',
     cardGlass: 'rgba(255, 255, 255, 0.04)',
+    dangerCard: '#100505',   // solid fraud-alert surface
+    dangerInset: '#180808',  // solid fraud-alert inset panel
     cardHover: 'rgba(255, 255, 255, 0.08)',
     border: 'rgba(255, 255, 255, 0.12)',
     borderActive: 'rgba(255, 255, 255, 0.4)',
     borderEmerald: 'rgba(255, 255, 255, 0.3)',
+  },
+
+  // Grayscale workhorse scale — every neutral used across the screens.
+  gray: {
+    white: '#FFFFFF',
+    200: '#DDDDDD',
+    300: '#CCCCCC',
+    400: '#AAAAAA',
+    500: '#888888',
+    600: '#666666',
+    700: '#555555',
+    750: '#444444',
+    800: '#333333',
+    850: '#222222',
+    900: '#1A1A1A',
+    925: '#161616',
+    950: '#141414',
+    975: '#111111',
+    card: '#0C0C0C',
+    deep: '#080808',
+    black: '#000000',
   },
 
   risk: {
@@ -58,6 +84,18 @@ export const PayGuardColors = {
     FLAGGED: '#FFB800',
   },
 } as const;
+
+// Brand colors at opacity — replaces inline `rgba(...)` literals in styles.
+export const PayGuardAlpha = {
+  white: (o: number): string => `rgba(255, 255, 255, ${o})`,
+  black: (o: number): string => `rgba(0, 0, 0, ${o})`,
+  danger: (o: number): string => `rgba(255, 42, 42, ${o})`,
+  safe: (o: number): string => `rgba(0, 255, 102, ${o})`,
+  warn: (o: number): string => `rgba(255, 184, 0, ${o})`,
+} as const;
+
+// Monospaced numerals (balances, card numbers, scores) — one definition.
+export const PayGuardMonoFont = Platform.OS === 'ios' ? 'Courier' : 'monospace';
 
 export const PayGuardSpacing = {
   xs: 4,

@@ -19,6 +19,7 @@ import { PayGuardNetworkClient } from '@/services/PayGuardNetworkClient';
 import { usePayGuardSession } from '@/store/payGuardSessionStore';
 import { usePayGuardThreats } from '@/store/threatIntelligenceStore';
 import { usePayGuardLedger } from '@/store/payGuardLedgerStore';
+import { toTransferStatus } from '@/utils/payGuardApiMappers';
 
 /**
  * Manages the WebSocket connection lifecycle.
@@ -55,9 +56,11 @@ export const usePayGuardThreatStream = () => {
       void refreshAlertFeed();
     });
 
-    // 3. Listen for transfer status changes → update ledger store
+    // 3. Listen for transfer status changes → update ledger store.
+    //    The wire carries the backend status (e.g. "awaiting_confirmation");
+    //    map it to the display model (FLAGGED) like the REST mappers do.
     listenForTransferStatusUpdates(({ transferId, status }) => {
-      updateTransferStatus(transferId, status as any);
+      updateTransferStatus(transferId, toTransferStatus(status));
     });
 
     // 4. Listen for live risk score updates → update threat store
