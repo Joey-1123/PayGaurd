@@ -44,7 +44,7 @@ export default function PayGuardRootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="light" backgroundColor="#0A0F1E" />
+        <StatusBar style="light" />
         {/* Slot renders whatever the current route's screen is */}
         <Slot />
       </SafeAreaProvider>
