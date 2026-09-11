@@ -1,7 +1,7 @@
 // Location: app/(auth)/pg-login.tsx
 // Pure Black & White Minimalist Login Screen
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import {
   IconShieldCheck,
 } from '@/components/icons/PayGuardIcons';
 import { usePayGuardSession } from '@/store/payGuardSessionStore';
+import { usePayGuardAuth } from '@/hooks/usePayGuardSession';
 import { MOCK_IDENTITY } from '@/utils/mockData';
 
 type LoginFormData = {
@@ -36,6 +37,11 @@ export default function PgLoginScreen() {
   const [apiError, setApiError] = useState<string | null>(null);
 
   const { authenticateIdentity } = usePayGuardSession();
+  const { login, error: authError } = usePayGuardAuth();
+
+  useEffect(() => {
+    if (authError) setApiError(authError);
+  }, [authError]);
 
   const {
     control,
@@ -49,10 +55,9 @@ export default function PgLoginScreen() {
     setIsLoading(true);
     setApiError(null);
     try {
-      await new Promise((r) => setTimeout(r, 1000));
-      throw new Error('Local backend offline. Tap Demo Mode below.');
-    } catch (e: any) {
-      setApiError(e.message ?? 'Login failed. Check credentials.');
+      // Real backend login (POST /auth/login form grant → GET /auth/me).
+      // Navigates to the dashboard on success; errors surface via authError.
+      await login({ emailAddress: data.emailAddress, password: data.password });
     } finally {
       setIsLoading(false);
     }
