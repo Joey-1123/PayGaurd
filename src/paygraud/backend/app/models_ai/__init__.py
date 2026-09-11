@@ -1,0 +1,1 @@
+"""Multi-model AI adapters (OpenAI, Anthropic, Local) + routing."""

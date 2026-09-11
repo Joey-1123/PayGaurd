@@ -1,0 +1,1 @@
+"""Payment gateway port + simulated adapter."""
