@@ -39,7 +39,8 @@ class ConnectionManager:
             from app.core.redis import get_redis
 
             client = get_redis()
-            await client.publish("payguard:ws", json.dumps({"type": event_type, "user_id": user_id, "data": payload}))
+            frame = {"type": event_type, "user_id": user_id, "data": {k: v for k, v in payload.items() if k != "user_id"}}
+            await client.publish("payguard:ws", json.dumps(frame))
         except Exception:
             pass
 

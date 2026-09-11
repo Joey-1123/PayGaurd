@@ -33,6 +33,13 @@ class PaymentService:
         await db.refresh(payment)
         return payment
 
+    async def _notify_status(self, payment: Payment, user: User) -> None:
+        """Push a payment_status_changed frame over the realtime stream (WS + Redis)."""
+        await self.publisher(
+            "payment_status_changed",
+            {"user_id": str(user.id), "transferId": str(payment.id), "status": str(payment.status)},
+        )
+
     async def analyze_and_route(self, db: AsyncSession, payment: Payment, user: User) -> Payment:
         recipient = await db.get(Recipient, payment.recipient_id) if payment.recipient_id else None
         features = await build_features(db, user, payment, recipient)
@@ -54,6 +61,7 @@ class PaymentService:
         payment.status = transition(payment.status, Status.AWAITING_CONFIRMATION)
         await db.commit()
         await db.refresh(payment)
+        await self._notify_status(payment, user)
         return payment
 
     async def confirm(self, db: AsyncSession, payment: Payment, user: User) -> Payment:
@@ -68,6 +76,7 @@ class PaymentService:
         await audit_service.log(db, "blocked_payment", user.id, payment.id, "payment", payment.id, {"reason": block_reason})
         await db.commit()
         await db.refresh(payment)
+        await self._notify_status(payment, user)
         return payment
 
     async def _complete(self, db: AsyncSession, payment: Payment, user: User) -> Payment:
@@ -88,4 +97,5 @@ class PaymentService:
         await audit_service.log(db, action, user.id, payment.id, "payment", payment.id, {"gateway_status": settled.status})
         await db.commit()
         await db.refresh(payment)
+        await self._notify_status(payment, user)
         return payment
