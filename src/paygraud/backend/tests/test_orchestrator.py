@@ -79,18 +79,18 @@ def test_level_from_score_bands():
 async def test_rule_engine_demo_scenarios_match_narrative():
     engine = RuleEngineModel()
     scenarios = [
-        (PaymentFeatures(amount=150.0, currency="USD", description="Salary transfer", recipient_name="John Carter",
+        (PaymentFeatures(amount=8000.0, currency="INR", description="Salary transfer", recipient_name="John Carter",
                          recipient_verified=True, recipient_risk_category="low", previous_tx_count=42,
-                         user_avg_transaction=500.0, user_tx_frequency=10), RiskLevel.LOW),
-        (PaymentFeatures(amount=2500.0, currency="USD", description="Booking deposit", recipient_name="Blue Lotus Events",
+                         user_avg_transaction=8000.0, user_tx_frequency=10), RiskLevel.LOW),
+        (PaymentFeatures(amount=25000.0, currency="INR", description="Booking deposit", recipient_name="Blue Lotus Events",
                          recipient_verified=False, recipient_risk_category="unknown", previous_tx_count=0,
-                         user_avg_transaction=500.0, user_tx_frequency=10), RiskLevel.MEDIUM),
-        (PaymentFeatures(amount=750.0, currency="USD", description="Card verification fee", recipient_name="Customer Care 2FA",
+                         user_avg_transaction=0.0, user_tx_frequency=10), RiskLevel.MEDIUM),
+        (PaymentFeatures(amount=1800.0, currency="INR", description="Card verification fee", recipient_name="Customer Care 2FA",
                          recipient_verified=False, recipient_risk_category="high", previous_tx_count=1,
-                         user_avg_transaction=500.0, user_tx_frequency=10), RiskLevel.HIGH),
-        (PaymentFeatures(amount=12000.0, currency="USD", description="Pending invoice settlement", recipient_name="Invoice Desk",
+                         user_avg_transaction=1800.0, user_tx_frequency=10), RiskLevel.HIGH),
+        (PaymentFeatures(amount=200000.0, currency="INR", description="Pending invoice settlement", recipient_name="Invoice Desk",
                          recipient_verified=False, recipient_risk_category="critical", previous_tx_count=0,
-                         user_avg_transaction=500.0, user_tx_frequency=10), RiskLevel.CRITICAL),
+                         user_avg_transaction=200000.0, user_tx_frequency=10), RiskLevel.CRITICAL),
     ]
     for features, expected in scenarios:
         result = await engine.analyze(features)
