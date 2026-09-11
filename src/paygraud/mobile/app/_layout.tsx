@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { usePayGuardSession } from '@/store/payGuardSessionStore';
+import { usePayGuardThreatStream } from '@/hooks/usePayGuardThreatStream';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -36,6 +37,7 @@ function useProtectedRoute() {
 
 export default function PayGuardRootLayout() {
   useProtectedRoute();
+  usePayGuardThreatStream();
 
   useEffect(() => {
     SplashScreen.hideAsync();
