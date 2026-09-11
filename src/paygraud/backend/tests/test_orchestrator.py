@@ -2,6 +2,7 @@ import pytest
 
 from app.agents.orchestrator import Orchestrator, RiskLevel, level_from_score
 from app.models_ai.base import BaseModelAI, ModelResult, ModelUnavailableError, PaymentFeatures
+from app.models_ai.rule_engine import RuleEngineModel
 
 
 class FakeModel(BaseModelAI):
@@ -72,3 +73,26 @@ def test_level_from_score_bands():
     assert level_from_score(45) is RiskLevel.MEDIUM
     assert level_from_score(70) is RiskLevel.HIGH
     assert level_from_score(95) is RiskLevel.CRITICAL
+
+
+@pytest.mark.asyncio
+async def test_rule_engine_demo_scenarios_match_narrative():
+    engine = RuleEngineModel()
+    scenarios = [
+        (PaymentFeatures(amount=150.0, currency="USD", description="Salary transfer", recipient_name="John Carter",
+                         recipient_verified=True, recipient_risk_category="low", previous_tx_count=42,
+                         user_avg_transaction=500.0, user_tx_frequency=10), RiskLevel.LOW),
+        (PaymentFeatures(amount=2500.0, currency="USD", description="Booking deposit", recipient_name="Blue Lotus Events",
+                         recipient_verified=False, recipient_risk_category="unknown", previous_tx_count=0,
+                         user_avg_transaction=500.0, user_tx_frequency=10), RiskLevel.MEDIUM),
+        (PaymentFeatures(amount=750.0, currency="USD", description="Card verification fee", recipient_name="Customer Care 2FA",
+                         recipient_verified=False, recipient_risk_category="high", previous_tx_count=1,
+                         user_avg_transaction=500.0, user_tx_frequency=10), RiskLevel.HIGH),
+        (PaymentFeatures(amount=12000.0, currency="USD", description="Pending invoice settlement", recipient_name="Invoice Desk",
+                         recipient_verified=False, recipient_risk_category="critical", previous_tx_count=0,
+                         user_avg_transaction=500.0, user_tx_frequency=10), RiskLevel.CRITICAL),
+    ]
+    for features, expected in scenarios:
+        result = await engine.analyze(features)
+        level = "low" if result.risk_score <= 30 else "medium" if result.risk_score <= 60 else "high" if result.risk_score <= 85 else "critical"
+        assert level == expected.value, (result.risk_score, result.flags)

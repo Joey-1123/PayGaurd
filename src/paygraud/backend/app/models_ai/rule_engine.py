@@ -51,7 +51,7 @@ class RuleEngineModel(BaseModelAI):
             score += min(35, 12 * len(hit))
             flags.append("urgency_social_engineering")
         imp = [p for p in IMPERSONATION_PATTERNS if p in text]
-        if imp and features.previous_tx_count == 0 and features.amount >= 2000:
+        if imp and (features.previous_tx_count == 0 or not features.recipient_verified):
             score += 25
             flags.append("possible_impersonation")
 
