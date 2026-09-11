@@ -2,7 +2,7 @@
 // Pure Black & White Minimalist Keypair Identity Creation Screen
 // Aligned with anti-ui-slop principles: clear form states, zero emoji slop, instant demo access
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import {
   IconEyeOff,
 } from '@/components/icons/PayGuardIcons';
 import { usePayGuardSession } from '@/store/payGuardSessionStore';
+import { usePayGuardAuth } from '@/hooks/usePayGuardSession';
 import { MOCK_IDENTITY } from '@/utils/mockData';
 
 type RegisterFormData = {
@@ -39,6 +40,11 @@ export default function PgRegisterScreen() {
   const [apiError, setApiError] = useState<string | null>(null);
 
   const { authenticateIdentity } = usePayGuardSession();
+  const { register, error: authError } = usePayGuardAuth();
+
+  useEffect(() => {
+    if (authError) setApiError(authError);
+  }, [authError]);
 
   const {
     control,
@@ -56,16 +62,13 @@ export default function PgRegisterScreen() {
     setIsLoading(true);
     setApiError(null);
     try {
-      await new Promise((r) => setTimeout(r, 1000));
-      // In live hackathon mode, authenticate locally with initialized identity
-      authenticateIdentity({
-        ...MOCK_IDENTITY,
-        fullName: data.fullName || MOCK_IDENTITY.fullName,
-        emailAddress: data.emailAddress || MOCK_IDENTITY.emailAddress,
+      // Real backend register (POST /auth/register) then auto-login.
+      // Navigates to the dashboard on success; errors surface via authError.
+      await register({
+        fullName: data.fullName,
+        emailAddress: data.emailAddress,
+        password: data.password,
       });
-      router.replace('/(tabs)/pg-dashboard');
-    } catch (e: any) {
-      setApiError(e.message ?? 'Registration failed. Try demo mode.');
     } finally {
       setIsLoading(false);
     }

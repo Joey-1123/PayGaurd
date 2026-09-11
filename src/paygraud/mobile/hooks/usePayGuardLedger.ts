@@ -22,7 +22,7 @@ export const usePayGuardLedgerData = () => {
     setError(null);
     try {
       const result = await PayGuardNetworkClient.fetchTransfers();
-      setTransfers(result.items);
+      setTransfers(result);
     } catch (e) {
       setError(extractApiError(e));
     } finally {

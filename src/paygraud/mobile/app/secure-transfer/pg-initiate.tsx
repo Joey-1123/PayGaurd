@@ -1,7 +1,7 @@
 // Location: app/secure-transfer/pg-initiate.tsx
 // Pure Black & White Minimalist Payment Initiation with Live AI Guardrails
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -24,16 +24,34 @@ import {
 } from '@/components/icons/PayGuardIcons';
 import { MOCK_BENEFICIARIES } from '@/utils/mockData';
 import { calculateLocalRiskHeuristics } from '@/utils/payGuardRiskEvaluator';
+import { PayGuardNetworkClient } from '@/services/PayGuardNetworkClient';
+import type { PayGuardBeneficiary } from '@/types/payGuardModels';
 
 export default function PgInitiateTransferScreen() {
-  const [amount, setAmount] = useState('50.00');
+  const [amount, setAmount] = useState('8000');
+  const [beneficiaries, setBeneficiaries] = useState<PayGuardBeneficiary[]>(MOCK_BENEFICIARIES);
   const [selectedBeneficiary, setSelectedBeneficiary] = useState(MOCK_BENEFICIARIES[0]);
   const [analyzing, setAnalyzing] = useState(false);
+  const [pendingConfirmTransferId, setPendingConfirmTransferId] = useState<string | null>(null);
   const [verdict, setVerdict] = useState<{
     riskScore: number;
     decision: 'APPROVE' | 'STEP_UP_2FA' | 'BLOCK';
     reason: string;
   } | null>(null);
+
+  // Load the real beneficiary list from the backend (falls back to mocks).
+  useEffect(() => {
+    PayGuardNetworkClient.fetchBeneficiaries()
+      .then((bens) => {
+        if (bens.length) {
+          setBeneficiaries(bens);
+          setSelectedBeneficiary(bens[0]);
+        }
+      })
+      .catch(() => {
+        // backend offline — mocks stand in
+      });
+  }, []);
 
   const numAmount = parseFloat(amount) || 0;
   const currentRisk = calculateLocalRiskHeuristics({
@@ -42,28 +60,74 @@ export default function PgInitiateTransferScreen() {
     beneficiaryId: selectedBeneficiary?.beneficiaryId,
   });
 
-  const handleAnalyzeAndPay = () => {
+  const handleAnalyzeAndPay = useCallback(async () => {
+    if (!numAmount) return;
     setAnalyzing(true);
-    setTimeout(() => {
-      setAnalyzing(false);
-      let dec: 'APPROVE' | 'STEP_UP_2FA' | 'BLOCK' = 'APPROVE';
-      let rsn = 'Verified standard transaction. Backend AI models cleared.';
+    setVerdict(null);
+    setPendingConfirmTransferId(null);
+    try {
+      // Real saga: POST /payments → POST /payments/:id/analyze.
+      // LOW → completed · MEDIUM/HIGH → awaiting_confirmation · CRITICAL → blocked.
+      const { transfer, risk } = await PayGuardNetworkClient.initiateSecureTransfer({
+        beneficiaryId: selectedBeneficiary?.beneficiaryId ?? '',
+        beneficiaryName: selectedBeneficiary?.name ?? '',
+        amount: numAmount,
+        currencyCode: 'INR',
+        note: `Transfer to ${selectedBeneficiary?.name ?? 'beneficiary'}`,
+      });
 
-      if (numAmount >= 10000) {
-        dec = 'BLOCK';
-        rsn = 'CRITICAL: Known phishing entity or abnormal high-value anomaly. Blocked.';
-      } else if (numAmount >= 2000) {
-        dec = 'STEP_UP_2FA';
-        rsn = 'STEP-UP REQUIRED: Unusual velocity detected. Biometric confirmation required.';
+      if (risk.decision === 'BLOCK' || transfer.transferStatus === 'BLOCKED_BY_SHIELD') {
+        setVerdict({
+          riskScore: risk.riskScore,
+          decision: 'BLOCK',
+          reason: risk.explanation || 'Critical risk anomaly — blocked before authorize was ever called.',
+        });
+      } else if (transfer.transferStatus === 'COMPLETED' || risk.decision === 'APPROVE') {
+        setVerdict({
+          riskScore: risk.riskScore,
+          decision: 'APPROVE',
+          reason: risk.explanation || 'Payment settled. Authorize + capture succeeded automatically.',
+        });
+      } else {
+        setPendingConfirmTransferId(transfer.transferId);
+        setVerdict({
+          riskScore: risk.riskScore,
+          decision: 'STEP_UP_2FA',
+          reason: risk.explanation || 'Human-in-the-loop: biometric confirmation required to settle.',
+        });
       }
-
+    } catch {
       setVerdict({
         riskScore: currentRisk,
-        decision: dec,
-        reason: rsn,
+        decision: 'BLOCK',
+        reason: 'Shield engine unreachable — payment blocked for your protection.',
       });
-    }, 1000);
-  };
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [numAmount, selectedBeneficiary, currentRisk]);
+
+  const handleConfirmAndSettle = useCallback(async () => {
+    if (!pendingConfirmTransferId) return;
+    setAnalyzing(true);
+    try {
+      await PayGuardNetworkClient.confirmTransfer(pendingConfirmTransferId);
+      setVerdict({
+        riskScore: verdict?.riskScore ?? 0,
+        decision: 'APPROVE',
+        reason: 'Confirmed by user. Payment captured and settled.',
+      });
+    } catch {
+      setVerdict({
+        riskScore: verdict?.riskScore ?? 0,
+        decision: 'BLOCK',
+        reason: 'Confirmation failed — transfer blocked.',
+      });
+    } finally {
+      setPendingConfirmTransferId(null);
+      setAnalyzing(false);
+    }
+  }, [pendingConfirmTransferId, verdict]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -89,7 +153,7 @@ export default function PgInitiateTransferScreen() {
         <View style={styles.amountCard}>
           <Text style={styles.amountLabel}>ENTER TRANSFER AMOUNT</Text>
           <View style={styles.amountInputRow}>
-            <Text style={styles.currencySymbol}>$</Text>
+            <Text style={styles.currencySymbol}>₹</Text>
             <TextInput
               style={styles.amountInput}
               value={amount}
@@ -103,13 +167,13 @@ export default function PgInitiateTransferScreen() {
             />
           </View>
 
-          {/* Quick Amount Scenario Chips */}
+          {/* Quick Amount Scenario Chips (INR demo ladder) */}
           <View style={styles.quickChipsRow}>
             {[
-              { val: '50.00', label: '$50 (Safe)' },
-              { val: '500.00', label: '$500 (Caution)' },
-              { val: '5000.00', label: '$5k (2FA)' },
-              { val: '15000.00', label: '$15k (Block)' },
+              { val: '8000', label: '₹8K (Safe)' },
+              { val: '1800', label: '₹1.8K (2FA)' },
+              { val: '25000', label: '₹25K (Caution)' },
+              { val: '200000', label: '₹2L (Block)' },
             ].map((chip) => (
               <Pressable
                 key={chip.val}
@@ -130,7 +194,7 @@ export default function PgInitiateTransferScreen() {
         {/* SELECT BENEFICIARY */}
         <Text style={styles.sectionHeader}>SELECT BENEFICIARY</Text>
         <View style={styles.beneficiaryList}>
-          {MOCK_BENEFICIARIES.map((ben) => {
+          {beneficiaries.map((ben) => {
             const isSelected = selectedBeneficiary?.beneficiaryId === ben.beneficiaryId;
             return (
               <Pressable
@@ -211,6 +275,23 @@ export default function PgInitiateTransferScreen() {
               </Text>
             </View>
             <Text style={styles.verdictReason}>{verdict.reason}</Text>
+            {pendingConfirmTransferId && (
+              <Pressable
+                style={({ pressed }) => [styles.confirmBtn, pressed && styles.btnPressed]}
+                onPress={handleConfirmAndSettle}
+                disabled={analyzing}
+                accessibilityRole="button"
+              >
+                {analyzing ? (
+                  <ActivityIndicator color="#000000" />
+                ) : (
+                  <>
+                    <Text style={styles.confirmBtnText}>Confirm & Settle with Shield</Text>
+                    <IconShieldCheck size={16} color="#000000" />
+                  </>
+                )}
+              </Pressable>
+            )}
           </View>
         )}
 
@@ -513,6 +594,22 @@ const styles = StyleSheet.create({
   payBtnText: {
     color: '#000000',
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  confirmBtn: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+  },
+  confirmBtnText: {
+    color: '#000000',
+    fontSize: 12,
     fontWeight: 'bold',
   },
 });

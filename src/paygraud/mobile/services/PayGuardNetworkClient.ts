@@ -1,50 +1,46 @@
 // Location: services/PayGuardNetworkClient.ts
 // The single HTTP client for ALL backend communication.
-// Uses Axios — a popular HTTP library that's better than raw fetch().
-//
-// WHY ONE CENTRAL CLIENT?
-// If the backend URL changes, or we need to add auth headers,
-// we change it in ONE place instead of 20+ files.
+// Mirrors the real FastAPI surface under /api/v1 (auth, payments, alerts,
+// recipients, signals). Response DTOs are mapped into PayGuard* display
+// models via utils/payGuardApiMappers.ts.
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import type {
   PayGuardAuthCredentials,
-  PayGuardRegisterPayload,
   PayGuardAuthResponse,
-  PayGuardSecureTransfer,
+  PayGuardRegisterPayload,
   PayGuardThreatAlert,
   PayGuardTelemetry,
   PayGuardBeneficiary,
-  PayGuardApiResponse,
-  PayGuardPaginatedResponse,
+  PayGuardSecureTransfer,
+  PayGuardInboundSignal,
+  PayGuardApiAlert,
+  PayGuardApiPayment,
+  PayGuardApiRecipient,
+  PayGuardApiSignal,
+  PayGuardApiUser,
   RiskAssessmentResult,
   SecurePaymentIntent,
 } from '@/types/payGuardModels';
-
-// ─────────────────────────────────────────────
-// ⚙️ CONFIGURATION
-// ─────────────────────────────────────────────
-
-// WHY USE A CONSTANT HERE?
-// During the hackathon, we swap this with the ngrok tunnel URL.
 import { API_BASE_URL } from '@/constants/apiConfig';
+import {
+  alertToThreatAlert,
+  apiUserToIdentity,
+  paymentToTransfer,
+  recipientToBeneficiary,
+  signalToInboundSignal,
+  toRiskDecision,
+  toRiskLevel,
+} from '@/utils/payGuardApiMappers';
 
 const BASE_URL = API_BASE_URL;
 
-// ─────────────────────────────────────────────
-// 🏗️ AXIOS INSTANCE
-// ─────────────────────────────────────────────
-
-// WHY CREATE AN INSTANCE instead of using axios directly?
-// An instance lets us set default config (baseURL, timeout, headers)
-// once, and all requests automatically inherit them.
-
 const client: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 10_000, // 10 seconds — if backend doesn't respond, fail fast
+  timeout: 10_000,
   headers: {
     'Content-Type': 'application/json',
-    'X-PayGuard-Client': 'mobile-v1', // lets backend know requests come from mobile
+    'X-PayGuard-Client': 'mobile-v1',
   },
 });
 
@@ -52,58 +48,81 @@ const client: AxiosInstance = axios.create({
 // 🔑 REQUEST INTERCEPTOR (auto-attach JWT token)
 // ─────────────────────────────────────────────
 
-// WHAT IS AN INTERCEPTOR?
-// A function that runs BEFORE every request.
-// Here we grab the stored JWT token and attach it to the Authorization header.
-// This way, every API call is automatically authenticated.
-
 client.interceptors.request.use(async (config) => {
   try {
-    // Zustand stores expose .getState() directly on the hook export
     const { usePayGuardSession } = await import('@/store/payGuardSessionStore');
     const token = usePayGuardSession.getState().activeIdentity?.token;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
   } catch {
-    // If store isn't ready yet (e.g. during login), skip
+    // Store not ready yet (e.g. during login)
   }
   return config;
 });
+
+// ─────────────────────────────────────────────
+// 🏗️ INTERNAL HELPERS
+// ─────────────────────────────────────────────
+
+let recipientsCache: PayGuardApiRecipient[] = [];
+let recipientsAt: number = 0;
+
+const recipientsById = async (): Promise<Map<string, PayGuardApiRecipient>> => {
+  if (Date.now() - recipientsAt > 15_000 || recipientsCache.length === 0) {
+    try {
+      recipientsCache = (await client.get<PayGuardApiRecipient[]>('/recipients')).data;
+      recipientsAt = Date.now();
+    } catch {
+      // keep stale cache on failure
+    }
+  }
+  return new Map(recipientsCache.map((r) => [r.id, r]));
+};
+
+const mapPayments = (payments: PayGuardApiPayment[], byId?: Map<string, PayGuardApiRecipient>) => {
+  return payments.map((p) => paymentToTransfer(p, byId));
+};
 
 // ─────────────────────────────────────────────
 // 🔐 AUTH ENDPOINTS
 // ─────────────────────────────────────────────
 
 export const PayGuardNetworkClient = {
-
   /**
-   * Register a new PayGuard account.
+   * Create a new account. Backend issues no token on register, so we log the
+   * user straight in afterwards and return a full auth session.
    * POST /auth/register
    */
-  register: async (
-    payload: PayGuardRegisterPayload
-  ): Promise<PayGuardAuthResponse> => {
-    const { data } = await client.post<PayGuardAuthResponse>(
-      '/auth/register',
-      payload
-    );
-    return data;
+  register: async (payload: PayGuardRegisterPayload): Promise<PayGuardAuthResponse> => {
+    await client.post('/auth/register', {
+      email: payload.emailAddress,
+      full_name: payload.fullName,
+      password: payload.password,
+    });
+    return PayGuardNetworkClient.login({
+      emailAddress: payload.emailAddress,
+      password: payload.password,
+    });
   },
 
   /**
-   * Login with email + password.
-   * POST /auth/login
-   * Returns JWT tokens + user identity.
+   * Authenticate and load the identity profile. Backend login is a standard
+   * OAuth2 form grant (username/password), then we fetch GET /auth/me.
+   * POST /auth/login → GET /auth/me
    */
-  login: async (
-    credentials: PayGuardAuthCredentials
-  ): Promise<PayGuardAuthResponse> => {
-    const { data } = await client.post<PayGuardAuthResponse>(
-      '/auth/login',
-      credentials
-    );
-    return data;
+  login: async (credentials: PayGuardAuthCredentials): Promise<PayGuardAuthResponse> => {
+    const form = new URLSearchParams();
+    form.append('username', credentials.emailAddress);
+    form.append('password', credentials.password);
+    const tokenRes = await client.post<{ access_token: string; token_type: string }>('/auth/login', form, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+    const accessToken = tokenRes.data.access_token;
+    const { data: me } = await client.get<PayGuardApiUser>('/auth/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    return { identity: apiUserToIdentity(me, accessToken), accessToken };
   },
 
   // ─────────────────────────────────────────
@@ -111,15 +130,23 @@ export const PayGuardNetworkClient = {
   // ─────────────────────────────────────────
 
   /**
-   * Fetch the user's security telemetry (stats for the dashboard).
-   * GET /telemetry
-   * Returns: totalTransactions, riskScore, activeAlerts, threatsBlocked
+   * Build the dashboard telemetry from real endpoints: alert stats + the
+   * payment ledger. GET /alerts/stats + GET /payments
    */
   fetchTelemetry: async (): Promise<PayGuardTelemetry> => {
-    const { data } = await client.get<PayGuardApiResponse<PayGuardTelemetry>>(
-      '/telemetry'
-    );
-    return data.data;
+    const [stats, payments] = await Promise.all([
+      client.get<{ total: number; by_severity: Record<string, number>; by_status: Record<string, number> }>('/alerts/stats'),
+      client.get<PayGuardApiPayment[]>('/payments', { params: { limit: 100 } }),
+    ]);
+    const activeAlerts = stats.data.by_status?.active ?? 0;
+    const blocked = payments.data.filter((p) => ['blocked', 'canceled', 'failed'].includes(p.status));
+    const scores = payments.data.map((p) => p.risk_score ?? 0).filter((s) => s > 0);
+    return {
+      totalTransactions: payments.data.length,
+      overallRiskScore: scores.length ? Math.max(...scores) : 0,
+      activeAlerts,
+      threatsBlockedToday: blocked.length,
+    };
   },
 
   // ─────────────────────────────────────────
@@ -127,64 +154,70 @@ export const PayGuardNetworkClient = {
   // ─────────────────────────────────────────
 
   /**
-   * Fetch paginated list of transfers (for the ledger screen).
-   * GET /transfers?page=1&pageSize=20
+   * Fetch the payment ledger. GET /payments?limit=
    */
-  fetchTransfers: async (
-    page = 1,
-    pageSize = 20
-  ): Promise<PayGuardPaginatedResponse<PayGuardSecureTransfer>> => {
-    const { data } = await client.get<
-      PayGuardApiResponse<PayGuardPaginatedResponse<PayGuardSecureTransfer>>
-    >('/transfers', { params: { page, pageSize } });
-    return data.data;
+  fetchTransfers: async (page = 1, pageSize = 20): Promise<PayGuardSecureTransfer[]> => {
+    const [{ data: payments }, byId] = await Promise.all([
+      client.get<PayGuardApiPayment[]>('/payments', { params: { limit: pageSize, offset: (page - 1) * pageSize } }),
+      recipientsById(),
+    ]);
+    return mapPayments(payments, byId);
   },
 
   /**
-   * Get a single transfer by ID (for the detail screen).
-   * GET /transfers/:transferId
+   * Get a single transfer by ID. GET /payments/:paymentId
    */
-  fetchTransferById: async (
-    transferId: string
-  ): Promise<PayGuardSecureTransfer> => {
-    const { data } = await client.get<
-      PayGuardApiResponse<PayGuardSecureTransfer>
-    >(`/transfers/${transferId}`);
-    return data.data;
+  fetchTransferById: async (transferId: string): Promise<PayGuardSecureTransfer> => {
+    const [{ data: payment }, byId] = await Promise.all([
+      client.get<PayGuardApiPayment>(`/payments/${transferId}`),
+      recipientsById(),
+    ]);
+    return paymentToTransfer(payment, byId);
   },
 
   /**
-   * Initiate a new payment. The backend will:
-   *  1. Run AI risk analysis
-   *  2. Return a risk assessment + decision
-   *  3. If APPROVE → run through PaymentSimulator
-   *  4. If BLOCK → never reaches the gateway
-   * 
-   * POST /transfers/initiate
+   * Create a payment and run the full AI risk analysis. The backend routes it:
+   * LOW → completed, MEDIUM/HIGH → awaiting_confirmation, CRITICAL → blocked.
+   * POST /payments → POST /payments/:id/analyze
    */
   initiateSecureTransfer: async (
     intent: SecurePaymentIntent
   ): Promise<{ transfer: PayGuardSecureTransfer; risk: RiskAssessmentResult }> => {
-    const { data } = await client.post<
-      PayGuardApiResponse<{
-        transfer: PayGuardSecureTransfer;
-        risk: RiskAssessmentResult;
-      }>
-    >('/transfers/initiate', intent);
-    return data.data;
+    const { data: created } = await client.post<PayGuardApiPayment>('/payments', {
+      recipient_id: intent.beneficiaryId || null,
+      amount: intent.amount,
+      currency: intent.currencyCode,
+      description: intent.note ?? '',
+    });
+    const { data: analyzed } = await client.post<PayGuardApiPayment>(`/payments/${created.id}/analyze`);
+    return {
+      transfer: paymentToTransfer(analyzed),
+      risk: {
+        transferId: analyzed.id,
+        riskScore: analyzed.risk_score ?? 0,
+        riskLevel: toRiskLevel(analyzed.risk_level),
+        decision: toRiskDecision(analyzed.recommendation, analyzed.risk_level),
+        flags: [],
+        explanation: analyzed.description ?? 'Risk analysis completed.',
+        aiRecommendation: analyzed.recommendation ?? undefined,
+      },
+    };
   },
 
   /**
-   * Confirm a MEDIUM-risk transfer (human-in-the-loop step).
-   * POST /transfers/:transferId/confirm
+   * Confirm a held (MEDIUM/HIGH) transfer. POST /payments/:id/confirm
    */
-  confirmTransfer: async (
-    transferId: string
-  ): Promise<PayGuardSecureTransfer> => {
-    const { data } = await client.post<
-      PayGuardApiResponse<PayGuardSecureTransfer>
-    >(`/transfers/${transferId}/confirm`);
-    return data.data;
+  confirmTransfer: async (transferId: string): Promise<PayGuardSecureTransfer> => {
+    const { data } = await client.post<PayGuardApiPayment>(`/payments/${transferId}/confirm`);
+    return paymentToTransfer(data);
+  },
+
+  /**
+   * Block a transfer (manual shield override). POST /payments/:id/block
+   */
+  blockTransfer: async (transferId: string): Promise<PayGuardSecureTransfer> => {
+    const { data } = await client.post<PayGuardApiPayment>(`/payments/${transferId}/block`);
+    return paymentToTransfer(data);
   },
 
   // ─────────────────────────────────────────
@@ -192,27 +225,30 @@ export const PayGuardNetworkClient = {
   // ─────────────────────────────────────────
 
   /**
-   * Fetch all active threat alerts.
-   * GET /alerts
+   * Fetch all threat alerts. GET /alerts
    */
   fetchThreatAlerts: async (): Promise<PayGuardThreatAlert[]> => {
-    const { data } = await client.get<
-      PayGuardApiResponse<PayGuardThreatAlert[]>
-    >('/alerts');
-    return data.data;
+    const { data } = await client.get<PayGuardApiAlert[]>('/alerts');
+    return data.map(alertToThreatAlert);
   },
 
   /**
-   * Dismiss a threat alert.
-   * POST /alerts/:alertId/dismiss
+   * Fetch a single alert by ID. GET /alerts/:alertId
+   */
+  fetchAlertById: async (alertId: string): Promise<PayGuardThreatAlert> => {
+    const { data } = await client.get<PayGuardApiAlert>(`/alerts/${alertId}`);
+    return alertToThreatAlert(data);
+  },
+
+  /**
+   * Dismiss a threat alert. PUT /alerts/:alertId/dismiss
    */
   dismissAlert: async (alertId: string): Promise<void> => {
-    await client.post(`/alerts/${alertId}/dismiss`);
+    await client.put(`/alerts/${alertId}/dismiss`);
   },
 
   /**
-   * Block the source of a threat (add to blocklist).
-   * POST /alerts/:alertId/block
+   * Block the source payment of a threat. POST /alerts/:alertId/block
    */
   blockThreatSource: async (alertId: string): Promise<void> => {
     await client.post(`/alerts/${alertId}/block`);
@@ -223,32 +259,62 @@ export const PayGuardNetworkClient = {
   // ─────────────────────────────────────────
 
   /**
-   * Fetch the list of known beneficiaries (for the recipient picker).
-   * GET /beneficiaries
+   * Fetch known recipients. GET /recipients
    */
   fetchBeneficiaries: async (): Promise<PayGuardBeneficiary[]> => {
-    const { data } = await client.get<
-      PayGuardApiResponse<PayGuardBeneficiary[]>
-    >('/beneficiaries');
-    return data.data;
+    const { data } = await client.get<PayGuardApiRecipient[]>('/recipients');
+    return data.map(recipientToBeneficiary);
   },
 
   // ─────────────────────────────────────────
-  // 🔍 RISK ENGINE (live pre-assessment)
+  // 📥 INBOUND SIGNALS (SMS interception)
   // ─────────────────────────────────────────
 
   /**
-   * Get a quick risk assessment for a payment BEFORE submitting.
-   * Used for the live risk meter while the user is filling in the form.
-   * POST /risk/assess
+   * Submit an intercepted SMS/notification to the shield scorer.
+   * The backend classifies it and routes: ignore / alert / reject.
+   * POST /signals/sms
    */
-  assessRisk: async (
-    intent: Partial<SecurePaymentIntent>
-  ): Promise<RiskAssessmentResult> => {
-    const { data } = await client.post<
-      PayGuardApiResponse<RiskAssessmentResult>
-    >('/risk/assess', intent);
-    return data.data;
+  captureSignal: async (payload: { sender: string; body: string; channel?: string }): Promise<PayGuardInboundSignal> => {
+    const { data } = await client.post<PayGuardApiSignal>('/signals/sms', {
+      sender: payload.sender,
+      body: payload.body,
+      channel: payload.channel ?? 'sms',
+    });
+    return signalToInboundSignal(data);
+  },
+
+  /**
+   * Fetch the history of scored inbound signals. GET /signals
+   */
+  fetchSignals: async (): Promise<PayGuardInboundSignal[]> => {
+    const { data } = await client.get<PayGuardApiSignal[]>('/signals');
+    return data.map(signalToInboundSignal);
+  },
+
+  // ─────────────────────────────────────────
+  // 🔍 RISK ENGINE (local pre-assessment)
+  // ─────────────────────────────────────────
+
+  /**
+   * Quick client-side pre-assessment used by the QR scanner. The backend has
+   * no "just checking, don't create a payment" endpoint, so we fall back to the
+   * local heuristic evaluator; callers never crash on it.
+   */
+  assessRisk: async (intent: Partial<SecurePaymentIntent>): Promise<RiskAssessmentResult | null> => {
+    const { calculateLocalRiskHeuristics } = await import('@/utils/payGuardRiskEvaluator');
+    const score = calculateLocalRiskHeuristics({
+      amount: intent.amount ?? 0,
+      beneficiaryName: intent.beneficiaryName,
+      beneficiaryId: intent.beneficiaryId,
+    });
+    return {
+      riskScore: Math.round(score),
+      riskLevel: score >= 85 ? 'CRITICAL' : score >= 60 ? 'HIGH' : score >= 30 ? 'MEDIUM' : 'LOW',
+      decision: toRiskDecision(undefined, score >= 85 ? 'critical' : score >= 30 ? 'medium' : 'low'),
+      flags: [],
+      explanation: 'Local pre-scan heuristic (QR scan).',
+    };
   },
 };
 
@@ -256,17 +322,8 @@ export const PayGuardNetworkClient = {
 // 🛠️ ERROR HELPER
 // ─────────────────────────────────────────────
 
-/**
- * Extracts a user-friendly error message from an Axios error.
- * 
- * WHY: Axios errors are complex objects. We want a simple string
- * to show in the UI (e.g. "Invalid credentials" instead of a stack trace).
- * 
- * Usage: catch(e) { const msg = extractApiError(e); showToast(msg); }
- */
 export const extractApiError = (error: unknown): string => {
   if (error instanceof AxiosError) {
-    // Backend returned a structured error
     return (
       error.response?.data?.message ??
       error.response?.data?.detail ??

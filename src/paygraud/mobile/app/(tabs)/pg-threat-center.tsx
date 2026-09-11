@@ -25,6 +25,7 @@ import {
   IconX,
   IconArrowRight,
   IconRotateCcw,
+  IconRadio,
 } from '@/components/icons/PayGuardIcons';
 import { PayGuardNetworkClient } from '@/services/PayGuardNetworkClient';
 import { usePayGuardThreats } from '@/store/threatIntelligenceStore';
@@ -46,7 +47,7 @@ export default function PgScanScreen() {
   const [torch, setTorch] = useState(false);
   const [scannedLock, setScannedLock] = useState(false);
 
-  const { addAlert } = usePayGuardThreats();
+  const { addAlert, activeAlerts } = usePayGuardThreats();
 
   // Animated laser line
   useEffect(() => {
@@ -382,6 +383,33 @@ export default function PgScanScreen() {
             >
               <Text style={styles.dismissBtnText}>Dismiss & Return to Safety</Text>
             </Pressable>
+          </View>
+        )}
+        {/* SIGNAL LAB LINK */}
+        <Pressable
+          style={({ pressed }) => [styles.signalLabBtn, pressed && styles.btnPressed]}
+          onPress={() => router.push('/secure-transfer/pg-signal-capture')}
+          accessibilityRole="button"
+        >
+          <IconRadio size={16} color="#000000" />
+          <Text style={styles.signalLabBtnText}>Open Signal Lab (SMS Capture)</Text>
+        </Pressable>
+
+        {/* ALERTS FEED */}
+        {activeAlerts.length > 0 && (
+          <View style={styles.alertsSection}>
+            <Text style={styles.alertsSectionTitle}>RECENT ALERTS</Text>
+            {activeAlerts.slice(0, 5).map((alert) => (
+              <View key={alert.alertId} style={styles.alertRow}>
+                <View style={styles.alertHeader}>
+                  <Text style={styles.alertCategory}>{alert.threatCategory}</Text>
+                  <Text style={[styles.alertStatus, alert.isBlocked && { color: '#FF2A2A' }]}>
+                    {alert.isBlocked ? 'BLOCKED' : 'MONITORING'}
+                  </Text>
+                </View>
+                <Text style={styles.alertDesc} numberOfLines={2}>{alert.description}</Text>
+              </View>
+            ))}
           </View>
         )}
       </View>
@@ -826,5 +854,61 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: 'bold',
+  },
+  signalLabBtn: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    marginTop: 20,
+  },
+  signalLabBtnText: {
+    color: '#000000',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  alertsSection: {
+    width: '100%',
+    marginTop: 24,
+  },
+  alertsSectionTitle: {
+    color: '#555555',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1.5,
+    marginBottom: 10,
+  },
+  alertRow: {
+    backgroundColor: '#0C0C0C',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  alertCategory: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  alertStatus: {
+    color: '#00FF66',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  alertDesc: {
+    color: '#888888',
+    fontSize: 11,
+    lineHeight: 16,
   },
 });
