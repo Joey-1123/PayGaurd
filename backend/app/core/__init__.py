@@ -1,0 +1,1 @@
+"""Core helpers: security, exceptions, and shared dependencies."""
