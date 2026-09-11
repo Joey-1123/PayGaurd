@@ -1,53 +1,61 @@
 // Location: constants/payGuardTheme.ts
-// PayGuard brand color system and design tokens
+// Pure Black & White Minimalist Design System (Monochrome Luxury)
 
 export const PayGuardColors = {
-  // Brand primaries
   brand: {
-    primary: '#208AEF',      // PayGuard Blue
-    secondary: '#0A0F1E',    // Deep Navy (dark background)
-    accent: '#00D4AA',       // Teal green (safe/verified)
+    primary: '#FFFFFF',      // Crisp Pure White
+    secondary: '#000000',    // Pure Pitch Black
+    accent: '#FFFFFF',       // Clean White Accent
+    cyan: '#E5E5E5',         // Soft White/Silver
   },
 
-  // Risk-level palette
+  surface: {
+    base: '#000000',
+    container: '#0A0A0A',
+    elevated: '#121212',
+    card: '#0E0E0E',
+    cardGlass: 'rgba(255, 255, 255, 0.04)',
+    cardHover: 'rgba(255, 255, 255, 0.08)',
+    border: 'rgba(255, 255, 255, 0.12)',
+    borderActive: 'rgba(255, 255, 255, 0.4)',
+    borderEmerald: 'rgba(255, 255, 255, 0.3)',
+  },
+
   risk: {
-    safe: '#00D4AA',         // PAYGUARD_GREEN_SAFE  (score 0–50)
-    warn: '#F59E0B',         // PAYGUARD_ORANGE_WARN (score 51–80)
-    critical: '#EF4444',     // PAYGUARD_RED_CRITICAL (score 81–100)
-    blocked: '#7C3AED',      // Purple — BLOCKED_BY_SHIELD
-    pending: '#6B7280',      // Gray — PENDING_ANALYSIS
+    safe: '#00FF66',         // Minimalist Crisp Green for Safe
+    warn: '#FFB800',         // Amber Warning
+    critical: '#FF2A2A',     // High-contrast Red for Fraudster Block
+    blocked: '#FF2A2A',      // Blocked
+    pending: '#888888',      // Analyzing
   },
 
-  // Threat-level badges
   threat: {
-    CRITICAL: '#EF4444',
-    HIGH: '#F97316',
-    MEDIUM: '#F59E0B',
-    LOW: '#22C55E',
+    CRITICAL: '#FF2A2A',
+    HIGH: '#FF5500',
+    MEDIUM: '#FFB800',
+    LOW: '#FFFFFF',
   },
 
-  // Backgrounds
   background: {
-    dark: '#0A0F1E',
-    card: '#111827',
-    cardElevated: '#1F2937',
-    input: '#1A2035',
+    dark: '#000000',
+    card: '#0A0A0A',
+    cardElevated: '#121212',
+    input: '#0E0E0E',
   },
 
-  // Text
   text: {
     primary: '#FFFFFF',
-    secondary: '#94A3B8',
-    muted: '#64748B',
-    link: '#208AEF',
+    secondary: '#8E8E93',
+    muted: '#555555',
+    link: '#FFFFFF',
+    emerald: '#00FF66',
   },
 
-  // Status
   status: {
-    COMPLETED: '#00D4AA',
-    PENDING_ANALYSIS: '#F59E0B',
-    BLOCKED_BY_SHIELD: '#EF4444',
-    FLAGGED: '#F97316',
+    COMPLETED: '#00FF66',
+    PENDING_ANALYSIS: '#888888',
+    BLOCKED_BY_SHIELD: '#FF2A2A',
+    FLAGGED: '#FFB800',
   },
 } as const;
 
@@ -55,29 +63,30 @@ export const PayGuardSpacing = {
   xs: 4,
   sm: 8,
   md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
-  xxxl: 64,
+  lg: 20,
+  xl: 28,
+  xxl: 40,
+  xxxl: 56,
 } as const;
 
 export const PayGuardBorderRadius = {
-  sm: 6,
-  md: 12,
-  lg: 18,
-  xl: 24,
+  xs: 4,
+  sm: 8,
+  md: 14,
+  lg: 20,
+  xl: 28,
   full: 9999,
 } as const;
 
 export const PayGuardFontSize = {
-  xs: 11,
-  sm: 13,
-  md: 15,
-  lg: 17,
-  xl: 20,
+  xs: 10,
+  sm: 12,
+  md: 14,
+  lg: 16,
+  xl: 19,
   xxl: 24,
-  title: 30,
-  hero: 38,
+  title: 32,
+  hero: 44,
 } as const;
 
 export const PayGuardFontWeight = {
