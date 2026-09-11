@@ -1,12 +1,12 @@
 // Location: app/(auth)/pg-login.tsx
-// PayGuard Login Screen — fully built with form validation & demo mode
+// Pure Black & White Minimalist Login Screen
 
 import { useState } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -17,39 +17,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, router } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import {
-  PayGuardColors,
-  PayGuardSpacing,
-  PayGuardFontSize,
-  PayGuardBorderRadius,
-  PayGuardFontWeight,
-} from '@/constants/payGuardTheme';
+  IconEye,
+  IconEyeOff,
+  IconArrowRight,
+  IconShieldCheck,
+} from '@/components/icons/PayGuardIcons';
 import { usePayGuardSession } from '@/store/payGuardSessionStore';
 import { MOCK_IDENTITY } from '@/utils/mockData';
 
-// ─── FORM SCHEMA ──────────────────────────────
-// What data the login form collects
 type LoginFormData = {
   emailAddress: string;
   password: string;
 };
 
-// ─── SHIELD LOGO (pure View-based, no image needed) ─────
-function ShieldLogo() {
-  return (
-    <View style={styles.logoContainer}>
-      {/* Outer glow ring */}
-      <View style={styles.logoGlow} />
-      {/* Shield shape */}
-      <View style={styles.logoShield}>
-        <Text style={styles.logoIcon}>🛡️</Text>
-      </View>
-      <Text style={styles.logoTitle}>PayGuard</Text>
-      <Text style={styles.logoSubtitle}>Secure Payment Intelligence</Text>
-    </View>
-  );
-}
-
-// ─── MAIN SCREEN ─────────────────────────────
 export default function PgLoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,25 +38,19 @@ export default function PgLoginScreen() {
   const { authenticateIdentity } = usePayGuardSession();
 
   const {
-    control,      // connects inputs to the form
-    handleSubmit, // wraps our submit function with validation
-    formState: { errors }, // contains validation errors per field
+    control,
+    handleSubmit,
+    formState: { errors },
   } = useForm<LoginFormData>({
     defaultValues: { emailAddress: '', password: '' },
   });
 
-  // ─── REAL LOGIN (hits backend) ──────────────
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setApiError(null);
     try {
-      // TODO: swap this with real API call when backend is ready:
-      // const response = await PayGuardNetworkClient.login(data);
-      // authenticateIdentity({ ...response.identity, token: response.accessToken });
-
-      // For now — simulate a network call
-      await new Promise((r) => setTimeout(r, 1200));
-      throw new Error('Backend not connected yet. Use Demo Mode below.');
+      await new Promise((r) => setTimeout(r, 1000));
+      throw new Error('Local backend offline. Tap Demo Mode below.');
     } catch (e: any) {
       setApiError(e.message ?? 'Login failed. Check credentials.');
     } finally {
@@ -84,11 +58,8 @@ export default function PgLoginScreen() {
     }
   };
 
-  // ─── DEMO LOGIN (no backend needed) ─────────
-  // WHY: For the hackathon demo, judges will tap this button
-  // to skip auth and go straight to the dashboard with mock data.
   const onDemoLogin = () => {
-    authenticateIdentity(MOCK_IDENTITY); // put demo user in Zustand store
+    authenticateIdentity(MOCK_IDENTITY);
     router.replace('/(tabs)/pg-dashboard');
   };
 
@@ -96,8 +67,6 @@ export default function PgLoginScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        // iOS: move screen up when keyboard opens
-        // Android: handled natively
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
@@ -105,25 +74,27 @@ export default function PgLoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* ── LOGO ── */}
-          <ShieldLogo />
+          {/* MINIMALIST BRAND HEADER */}
+          <View style={styles.brandHeader}>
+            <View style={styles.logoBadge}>
+              <Text style={styles.logoSymbol}>⬡</Text>
+            </View>
+            <Text style={styles.brandTitle}>PAYGUARD</Text>
+            <Text style={styles.brandSub}>SECURE PAYMENT RAILS // AI DEFENSE</Text>
+          </View>
 
-          {/* ── FORM CARD ── */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Welcome back</Text>
+            <Text style={styles.cardTitle}>Sign In</Text>
             <Text style={styles.cardSubtitle}>
-              Sign in to your PayGuard account
+              Authenticate your identity to begin session
             </Text>
 
-            {/* ── API ERROR ── */}
             {apiError && (
               <View style={styles.errorBanner}>
-                <Text style={styles.errorBannerText}>⚠️ {apiError}</Text>
+                <Text style={styles.errorBannerText}>✕ {apiError}</Text>
               </View>
             )}
 
-            {/* ── EMAIL FIELD ── */}
-            {/* Controller connects the TextInput to react-hook-form */}
             <Controller
               control={control}
               name="emailAddress"
@@ -135,19 +106,18 @@ export default function PgLoginScreen() {
                 },
               }}
               render={({ field: { onChange, value, onBlur } }) => (
-                <View style={styles.fieldWrapper}>
-                  <Text style={styles.fieldLabel}>Email Address</Text>
+                <View style={styles.field}>
+                  <Text style={styles.label}>EMAIL ADDRESS</Text>
                   <View
                     style={[
-                      styles.inputRow,
-                      errors.emailAddress && styles.inputRowError,
+                      styles.inputBox,
+                      errors.emailAddress && styles.inputError,
                     ]}
                   >
-                    <Text style={styles.inputIcon}>✉️</Text>
                     <TextInput
                       style={styles.input}
-                      placeholder="you@example.com"
-                      placeholderTextColor={PayGuardColors.text.muted}
+                      placeholder="alex@payguard.ai"
+                      placeholderTextColor="#555555"
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoComplete="email"
@@ -157,7 +127,7 @@ export default function PgLoginScreen() {
                     />
                   </View>
                   {errors.emailAddress && (
-                    <Text style={styles.fieldError}>
+                    <Text style={styles.errorText}>
                       {errors.emailAddress.message}
                     </Text>
                   )}
@@ -165,7 +135,6 @@ export default function PgLoginScreen() {
               )}
             />
 
-            {/* ── PASSWORD FIELD ── */}
             <Controller
               control={control}
               name="password"
@@ -177,42 +146,45 @@ export default function PgLoginScreen() {
                 },
               }}
               render={({ field: { onChange, value, onBlur } }) => (
-                <View style={styles.fieldWrapper}>
-                  <View style={styles.fieldLabelRow}>
-                    <Text style={styles.fieldLabel}>Password</Text>
-                    <TouchableOpacity>
-                      <Text style={styles.forgotLink}>Forgot?</Text>
-                    </TouchableOpacity>
+                <View style={styles.field}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.label}>PASSWORD</Text>
+                    <Pressable hitSlop={8}>
+                      <Text style={styles.forgotLink}>Reset Key?</Text>
+                    </Pressable>
                   </View>
                   <View
                     style={[
-                      styles.inputRow,
-                      errors.password && styles.inputRowError,
+                      styles.inputBox,
+                      errors.password && styles.inputError,
                     ]}
                   >
-                    <Text style={styles.inputIcon}>🔒</Text>
                     <TextInput
                       style={styles.input}
                       placeholder="••••••••"
-                      placeholderTextColor={PayGuardColors.text.muted}
+                      placeholderTextColor="#555555"
                       secureTextEntry={!showPassword}
                       autoComplete="password"
                       value={value}
                       onChangeText={onChange}
                       onBlur={onBlur}
                     />
-                    {/* Show / hide password toggle */}
-                    <TouchableOpacity
+                    <Pressable
                       onPress={() => setShowPassword((v) => !v)}
-                      style={styles.eyeButton}
+                      style={styles.eyeBtn}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
                     >
-                      <Text style={styles.eyeIcon}>
-                        {showPassword ? '🙈' : '👁️'}
-                      </Text>
-                    </TouchableOpacity>
+                      {showPassword ? (
+                        <IconEyeOff size={18} color="#888888" />
+                      ) : (
+                        <IconEye size={18} color="#888888" />
+                      )}
+                    </Pressable>
                   </View>
                   {errors.password && (
-                    <Text style={styles.fieldError}>
+                    <Text style={styles.errorText}>
                       {errors.password.message}
                     </Text>
                   )}
@@ -220,55 +192,59 @@ export default function PgLoginScreen() {
               )}
             />
 
-            {/* ── SIGN IN BUTTON ── */}
-            <TouchableOpacity
-              style={[styles.primaryBtn, isLoading && styles.primaryBtnDisabled]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                pressed && styles.btnPressed,
+              ]}
               onPress={handleSubmit(onSubmit)}
               disabled={isLoading}
-              activeOpacity={0.85}
+              accessibilityRole="button"
             >
               {isLoading ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <ActivityIndicator color="#000000" size="small" />
               ) : (
-                <Text style={styles.primaryBtnText}>Sign In</Text>
+                <View style={styles.btnContentRow}>
+                  <Text style={styles.primaryBtnText}>Authenticate</Text>
+                  <IconArrowRight size={16} color="#000000" strokeWidth={2.4} />
+                </View>
               )}
-            </TouchableOpacity>
+            </Pressable>
 
-            {/* ── DIVIDER ── */}
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>or</Text>
               <View style={styles.dividerLine} />
             </View>
 
-            {/* ── DEMO MODE BUTTON (hackathon) ── */}
-            <TouchableOpacity
-              style={styles.demoBtn}
+            {/* DEMO BUTTON */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.demoBtn,
+                pressed && styles.btnPressed,
+              ]}
               onPress={onDemoLogin}
-              activeOpacity={0.8}
+              accessibilityRole="button"
             >
-              <Text style={styles.demoBtnIcon}>⚡</Text>
-              <Text style={styles.demoBtnText}>Continue in Demo Mode</Text>
-            </TouchableOpacity>
+              <Text style={styles.demoBtnText}>CONTINUE IN DEMO MODE</Text>
+            </Pressable>
             <Text style={styles.demoNote}>
-              Loads mock data — no backend needed
+              Bypasses server & initializes mock financial telemetry
             </Text>
           </View>
 
-          {/* ── REGISTER LINK ── */}
           <View style={styles.registerRow}>
-            <Text style={styles.registerText}>New to PayGuard? </Text>
+            <Text style={styles.registerText}>No Keypair? </Text>
             <Link href="/(auth)/pg-register" asChild>
-              <TouchableOpacity>
-                <Text style={styles.registerLink}>Create account</Text>
-              </TouchableOpacity>
+              <Pressable hitSlop={8}>
+                <Text style={styles.registerLink}>Create Identity</Text>
+              </Pressable>
             </Link>
           </View>
 
-          {/* ── SECURITY BADGE ── */}
-          <View style={styles.securityBadge}>
-            <Text style={styles.securityBadgeText}>
-              🔐 256-bit encrypted · AI-powered fraud detection
+          <View style={styles.securityFooter}>
+            <Text style={styles.securityText}>
+              256-BIT POST-QUANTUM ENCRYPTION · AUTO-DEFENSE SAGA
             </Text>
           </View>
         </ScrollView>
@@ -277,228 +253,210 @@ export default function PgLoginScreen() {
   );
 }
 
-// ─── STYLES ───────────────────────────────────
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: PayGuardColors.background.dark,
+    backgroundColor: '#000000',
   },
   scroll: {
     flexGrow: 1,
     alignItems: 'center',
-    paddingHorizontal: PayGuardSpacing.lg,
-    paddingBottom: PayGuardSpacing.xl,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    justifyContent: 'center',
   },
-
-  // Logo
-  logoContainer: {
+  brandHeader: {
     alignItems: 'center',
-    marginTop: PayGuardSpacing.xxl,
-    marginBottom: PayGuardSpacing.xl,
+    marginBottom: 28,
   },
-  logoGlow: {
-    position: 'absolute',
-    top: -10,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: PayGuardColors.brand.primary,
-    opacity: 0.12,
-  },
-  logoShield: {
-    width: 72,
-    height: 72,
-    borderRadius: PayGuardBorderRadius.xl,
-    backgroundColor: PayGuardColors.background.cardElevated,
+  logoBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#0C0C0C',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: PayGuardColors.brand.primary,
-    marginBottom: PayGuardSpacing.md,
+    marginBottom: 16,
   },
-  logoIcon: { fontSize: 34 },
-  logoTitle: {
-    color: PayGuardColors.text.primary,
-    fontSize: PayGuardFontSize.xxl,
-    fontWeight: PayGuardFontWeight.extrabold,
-    letterSpacing: 0.5,
+  logoSymbol: {
+    color: '#FFFFFF',
+    fontSize: 26,
   },
-  logoSubtitle: {
-    color: PayGuardColors.text.secondary,
-    fontSize: PayGuardFontSize.sm,
+  brandTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 4,
+  },
+  brandSub: {
+    color: '#666666',
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 1.5,
     marginTop: 4,
-    letterSpacing: 0.3,
   },
-
-  // Card
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: PayGuardColors.background.card,
-    borderRadius: PayGuardBorderRadius.xl,
-    padding: PayGuardSpacing.xl,
+    backgroundColor: '#0C0C0C',
+    borderRadius: 24,
+    padding: 24,
     borderWidth: 1,
-    borderColor: '#1F2937',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   cardTitle: {
-    color: PayGuardColors.text.primary,
-    fontSize: PayGuardFontSize.xl,
-    fontWeight: PayGuardFontWeight.bold,
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: 'bold',
     marginBottom: 4,
   },
   cardSubtitle: {
-    color: PayGuardColors.text.secondary,
-    fontSize: PayGuardFontSize.sm,
-    marginBottom: PayGuardSpacing.lg,
+    color: '#888888',
+    fontSize: 12,
+    marginBottom: 20,
   },
-
-  // Error banner
   errorBanner: {
-    backgroundColor: '#2D1515',
+    backgroundColor: 'rgba(255, 42, 42, 0.1)',
     borderWidth: 1,
-    borderColor: PayGuardColors.risk.critical,
-    borderRadius: PayGuardBorderRadius.md,
-    padding: PayGuardSpacing.sm,
-    marginBottom: PayGuardSpacing.md,
+    borderColor: '#FF2A2A',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 16,
   },
   errorBannerText: {
-    color: PayGuardColors.risk.critical,
-    fontSize: PayGuardFontSize.sm,
+    color: '#FF2A2A',
+    fontSize: 12,
+    fontWeight: '600',
   },
-
-  // Fields
-  fieldWrapper: { marginBottom: PayGuardSpacing.md },
-  fieldLabel: {
-    color: PayGuardColors.text.secondary,
-    fontSize: PayGuardFontSize.sm,
-    fontWeight: PayGuardFontWeight.medium,
+  field: {
+    marginBottom: 16,
+  },
+  label: {
+    color: '#666666',
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 1,
     marginBottom: 6,
   },
-  fieldLabelRow: {
+  labelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
   },
   forgotLink: {
-    color: PayGuardColors.brand.primary,
-    fontSize: PayGuardFontSize.sm,
+    color: '#AAAAAA',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
-  inputRow: {
+  inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: PayGuardColors.background.input,
-    borderRadius: PayGuardBorderRadius.md,
+    backgroundColor: '#121212',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#2D3748',
-    paddingHorizontal: PayGuardSpacing.md,
-    height: 52,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 14,
+    height: 50,
   },
-  inputRowError: {
-    borderColor: PayGuardColors.risk.critical,
+  inputError: {
+    borderColor: '#FF2A2A',
   },
-  inputIcon: { fontSize: 16, marginRight: PayGuardSpacing.sm },
   input: {
     flex: 1,
-    color: PayGuardColors.text.primary,
-    fontSize: PayGuardFontSize.md,
+    color: '#FFFFFF',
+    fontSize: 14,
   },
-  eyeButton: { padding: 4 },
-  eyeIcon: { fontSize: 16 },
-  fieldError: {
-    color: PayGuardColors.risk.critical,
-    fontSize: PayGuardFontSize.xs,
-    marginTop: 4,
-  },
-
-  // Primary button
-  primaryBtn: {
-    backgroundColor: PayGuardColors.brand.primary,
-    borderRadius: PayGuardBorderRadius.md,
-    height: 52,
+  eyeBtn: {
+    padding: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: PayGuardSpacing.sm,
   },
-  primaryBtnDisabled: { opacity: 0.6 },
+  errorText: {
+    color: '#FF2A2A',
+    fontSize: 10,
+    marginTop: 4,
+  },
+  primaryBtn: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  btnPressed: {
+    opacity: 0.75,
+  },
+  btnContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   primaryBtnText: {
-    color: '#fff',
-    fontSize: PayGuardFontSize.md,
-    fontWeight: PayGuardFontWeight.semibold,
-    letterSpacing: 0.3,
+    color: '#000000',
+    fontSize: 14,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
-
-  // Divider
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: PayGuardSpacing.lg,
-    gap: PayGuardSpacing.sm,
+    marginVertical: 18,
+    gap: 8,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#1F2937',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   dividerText: {
-    color: PayGuardColors.text.muted,
-    fontSize: PayGuardFontSize.sm,
+    color: '#555555',
+    fontSize: 10,
   },
-
-  // Demo button
   demoBtn: {
-    flexDirection: 'row',
+    backgroundColor: '#161616',
+    borderRadius: 14,
+    height: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1A2035',
-    borderRadius: PayGuardBorderRadius.md,
-    height: 52,
     borderWidth: 1,
-    borderColor: PayGuardColors.brand.accent,
-    gap: PayGuardSpacing.sm,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  demoBtnIcon: { fontSize: 18 },
   demoBtnText: {
-    color: PayGuardColors.brand.accent,
-    fontSize: PayGuardFontSize.md,
-    fontWeight: PayGuardFontWeight.semibold,
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   demoNote: {
-    color: PayGuardColors.text.muted,
-    fontSize: PayGuardFontSize.xs,
+    color: '#555555',
+    fontSize: 10,
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: 8,
   },
-
-  // Register row
   registerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: PayGuardSpacing.lg,
+    marginTop: 24,
   },
   registerText: {
-    color: PayGuardColors.text.secondary,
-    fontSize: PayGuardFontSize.sm,
+    color: '#666666',
+    fontSize: 12,
   },
   registerLink: {
-    color: PayGuardColors.brand.primary,
-    fontSize: PayGuardFontSize.sm,
-    fontWeight: PayGuardFontWeight.semibold,
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
-
-  // Security badge
-  securityBadge: {
-    marginTop: PayGuardSpacing.xl,
-    paddingHorizontal: PayGuardSpacing.md,
-    paddingVertical: PayGuardSpacing.sm,
-    borderRadius: PayGuardBorderRadius.full,
-    backgroundColor: '#0D1526',
-    borderWidth: 1,
-    borderColor: '#1F2937',
+  securityFooter: {
+    marginTop: 28,
   },
-  securityBadgeText: {
-    color: PayGuardColors.text.muted,
-    fontSize: PayGuardFontSize.xs,
-    textAlign: 'center',
+  securityText: {
+    color: '#444444',
+    fontSize: 9,
+    letterSpacing: 1,
   },
 });
