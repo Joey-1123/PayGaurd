@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Repo status
-Planning phase — no application code yet. Tracked files: `project_plan.md`, `.gitignore`. Planning docs live in `local/` (all `*.md` + PDF) and are **gitignored**.
+Hackathon build in progress on branch `backend`. Planning docs live in `local/` (all `*.md` + PDF) and are **gitignored**. Tracked root files: `AGENTS.md`, `README.md`, `.gitignore`, `LICENSE`; `docs/project_plan.md` is tracked. Branches: `main` (PR-protected), `backend`, `frontend_web`, `mobile`.
 
 ## Commits (hard rules)
 - **Max 100 LOC per commit** (net diff). Target ~50 LOC. If a change exceeds this, split it into multiple logical commits.
@@ -9,17 +9,31 @@ Planning phase — no application code yet. Tracked files: `project_plan.md`, `.
 - Only commit when explicitly asked. Never commit anything from `local/`.
 - Repo-level auth: `Joey-1123 <shubhampanchal9168@gmail.com>`. Author must stay `Joey-1123` — do not change git config.
 
+## Repo layout
+- Target architecture (mirrors main): `src/paygraud/backend`, `src/paygraud/frontend/web`, `src/paygraud/mobile`, plus `docs/`, `screenshot/`, `data/`, `requirements.txt`, `README.md`, `LICENSE` at root.
+- Branch → directory mapping: `backend` → `src/paygraud/backend`, `frontend_web` → `src/paygraud/frontend/web`, `mobile` → `src/paygraud/mobile`. PRs must land code in the matching directory.
+
+## Backend build state
+- `src/paygraud/backend/` uses **uv** as package manager + venv (`.venv`). Python 3.14 local.
+- Bootstrap: `uv sync --group dev`. Run: `uv run uvicorn app.main:app --reload` (docs at `/docs`, health at `/health`).
+- Migrations: `uv run alembic revision --autogenerate`, `uv run alembic upgrade head`. Migration generation needs a live Postgres.
+- Env: `src/paygraud/backend/.env` for secrets (DB URL, OPENAI/ANTHROPIC keys). Config in `app/config.py` (pydantic-settings).
+- Async SQLAlchemy 2.0 + `asyncpg`. Do NOT use sync engine patterns.
+- DB is `postgres:16` via `docker-compose.yml` at `src/paygraud/backend/` (db + redis). Docker Desktop/WSL may need to be started first; local `postgresql-x64-18` also exists as a fallback.
+
 ## Reference docs
 - `local/BACKEND.md` — backend plan (FastAPI, SQLAlchemy 2.0, PostgreSQL 16, Redis, Celery)
 - `local/FRONTEND.md`, `local/MOBILE.md`, `local/MULTI_MODEL.md`, `local/DATABASES.md`, `local/ARCHITECTURE.md`
 - `project_plan.md` — milestones, demo scenarios, next actions
 
-## Stack (planned)
-- Backend: `backend/` — FastAPI app under `app/` (api, agents, models_ai, models, schemas, services)
-- Multi-model AI: OpenAI + Anthropic + Local (Ollama) routed by orchestrator with fallback
-- Payment gateway is simulated (`PaymentSimulator`) — no real money rails
-- WebSocket for real-time alerts; ngrok for demo device access (CORS must allow `https://*.ngrok-free.app`)
+## Key architecture decisions
+- Layered FastAPI under `app/`: `api/` (thin routers) → `services/` (business logic) → `models/` (SQLAlchemy) + `agents/` + `models_ai/`.
+- External systems behind interfaces (`base_gateway.py`, `base_model.py`) so tests can inject fakes — no DB/network needed for agent unit tests.
+- Payment lifecycle is a saga: `pending → analyzing → (awaiting_confirmation → confirmed →) completed`, with block/cancel/failed as compensations. CRITICAL payments are blocked before `authorize` is ever called.
+- Multi-model AI: OpenAI + Anthropic + Local (Ollama) routed by orchestrator with weighted aggregation + fallback chain.
+- Payment gateway is simulated (`PaymentSimulator`) — no real money rails.
+- WebSocket for real-time alerts; ngrok for demo device access (CORS allows `https://*.ngrok-free.app`).
 
 ## Environment
 - Windows / PowerShell (5.1). No `&&` chaining — use `;` and `if ($?)`.
-- No test/lint tooling wired up yet; add pytest smoke tests with the scaffold.
+- No lint/type tooling wired yet; pytest smoke suite gets added with the scaffold (Phase 9).
