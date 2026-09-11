@@ -5,6 +5,7 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform } from 'react-native';
 import { IconHome, IconQrCode, IconReceipt, IconShieldCheck } from '@/components/icons/PayGuardIcons';
+import { PayGuardColors as C, PayGuardAlpha as A } from '@/constants/payGuardTheme';
 
 function TabItem({
   IconComponent,
@@ -17,7 +18,7 @@ function TabItem({
     <View style={styles.tabItem}>
       <IconComponent
         size={22}
-        color={focused ? '#FFFFFF' : '#666666'}
+        color={focused ? C.gray.white : C.gray[600]}
         strokeWidth={focused ? 2.4 : 1.8}
       />
       {focused && <View style={styles.activePill} />}
@@ -64,8 +65,8 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#000000',
-    borderTopColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: C.gray.black,
+    borderTopColor: A.white(0.12),
     borderTopWidth: 1,
     height: Platform.OS === 'ios' ? 84 : 64,
     paddingBottom: Platform.OS === 'ios' ? 22 : 8,
@@ -84,7 +85,7 @@ const styles = StyleSheet.create({
     bottom: -6,
     width: 14,
     height: 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
     borderRadius: 1,
   },
 });
