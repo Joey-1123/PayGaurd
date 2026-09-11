@@ -12,10 +12,15 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://payguard:payguard@localhost:5432/payguard"
     redis_url: str = "redis://localhost:6379/0"
+    celery_broker_url: str = "redis://localhost:6379/1"
+    celery_result_backend: str = "redis://localhost:6379/2"
 
     secret_key: str = "change-me"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+
+    login_rate_limit: int = 5
+    async_analysis: bool = False
 
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
