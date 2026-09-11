@@ -36,7 +36,7 @@ class PaymentService:
     async def analyze_and_route(self, db: AsyncSession, payment: Payment, user: User) -> Payment:
         recipient = await db.get(Recipient, payment.recipient_id) if payment.recipient_id else None
         features = await build_features(db, user, payment, recipient)
-        assessment = await self.orchestrator.analyze_payment(features)
+        assessment = await self.orchestrator.analyze_payment(features, payment_id=str(payment.id))
         payment.status = transition(Status(payment.status), Status.ANALYZING)
         payment.risk_score = assessment.final_score
         payment.risk_level = assessment.risk_level.value
