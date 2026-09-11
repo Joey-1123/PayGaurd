@@ -1,159 +1,181 @@
 // Location: services/PayGuardThreatStream.ts
-// Real-time WebSocket connection to the PayGuard backend.
-// Uses socket.io-client — works with FastAPI's WebSocket server.
+// Real-time WebSocket connection to the PayGuard shield engine.
 //
-// WHY WEBSOCKET and not just polling the REST API?
-// Polling = app asks "any new threats?" every 5 seconds → wasteful
-// WebSocket = backend PUSHES alerts the INSTANT they happen → real-time
-// This is critical for a security app — a threat alert delayed by 5 seconds
-// could mean money lost.
+// The backend is a plain FastAPI WebSocket at /api/v1/ws (auth via ?token=),
+// NOT Socket.IO. Frames are JSON `{ "type": "<event>", "data": {...} }`.
+// Known backend events:
+//   - "connected"   → handshake acked
+//   - "alert_new"   → a new threat alert was raised (payment or inbound SMS)
+//
+// We keep React Native's native WebSocket (no socket.io dependency).
 
-import { io, Socket } from 'socket.io-client';
-import type { PayGuardThreatAlert, RiskAssessmentResult } from '@/types/payGuardModels';
+import type { PayGuardThreatAlert } from '@/types/payGuardModels';
+import { WS_STREAM_URL } from '@/constants/apiConfig';
 
-// ─────────────────────────────────────────────
-// ⚙️ CONFIG
-// ─────────────────────────────────────────────
+const RECONNECT_DELAY_MS = 2500;
+const MAX_RECONNECT_ATTEMPTS = 6;
 
-import { NGROK_BACKEND_URL } from '@/constants/apiConfig';
+let socket: WebSocket | null = null;
+let authToken: string | null = null;
+let reconnectAttempts = 0;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let shouldReconnect = false;
 
-const WS_URL = NGROK_BACKEND_URL;
-
-// ─────────────────────────────────────────────
-// 🔌 SOCKET INSTANCE
-// ─────────────────────────────────────────────
-
-// WHY A MODULE-LEVEL VARIABLE?
-// We only ever need ONE socket connection to the backend.
-// If we created a new socket inside a component, it would
-// reconnect every re-render — that's hundreds of connections!
-
-let socket: Socket | null = null;
+type StreamHandler = (payload: unknown) => void;
+const listeners: Map<string, Set<StreamHandler>> = new Map();
 
 // ─────────────────────────────────────────────
-// 🟢 CONNECT
+// 🔌 CONNECTION LIFECYCLE
 // ─────────────────────────────────────────────
+
+const tokenUrl = (token: string): string =>
+  `${WS_STREAM_URL}?token=${encodeURIComponent(token)}`;
+
+function emit(eventName: string, payload: unknown): void {
+  listeners.get(eventName)?.forEach((handler) => {
+    try {
+      handler(payload);
+    } catch {
+      // a single bad handler must not kill the stream
+    }
+  });
+}
+
+function scheduleReconnect(): void {
+  if (!shouldReconnect || socket?.readyState === WebSocket.OPEN) return;
+  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.warn('[ThreatStream] reconnect limit reached');
+    return;
+  }
+  reconnectAttempts += 1;
+  reconnectTimer = setTimeout(() => {
+    if (authToken && shouldReconnect) connectToShieldEngine(authToken);
+  }, RECONNECT_DELAY_MS);
+}
 
 /**
- * Connect to the PayGuard Shield Engine WebSocket server.
- * Call this once when the user logs in (in the root layout).
- * 
- * @param token - JWT token so the backend knows WHO is connecting
+ * Connect to the shield engine. Call once after login.
  */
 export const connectToShieldEngine = (token: string): void => {
-  // Don't create a duplicate connection
-  if (socket?.connected) {
+  if (socket?.readyState === WebSocket.OPEN) {
     console.log('[ThreatStream] Already connected');
     return;
   }
 
-  socket = io(WS_URL, {
-    // WHY auth object? The backend validates the JWT on connection.
-    // If the token is invalid, the server disconnects immediately.
-    auth: { token },
+  authToken = token;
+  shouldReconnect = true;
+  reconnectAttempts = 0;
 
-    // Reconnect automatically if connection drops
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 2000,  // wait 2s before retrying
-    transports: ['websocket'], // skip long-polling, go straight to WS
-  });
+  let ws: WebSocket;
+  try {
+    ws = new WebSocket(tokenUrl(token));
+  } catch {
+    scheduleReconnect();
+    return;
+  }
+  socket = ws;
 
-  // Connection event listeners (for debugging)
-  socket.on('connect', () => {
-    console.log('[ThreatStream] ✅ Connected to PayGuard Shield Engine');
-  });
+  ws.onopen = () => {
+    reconnectAttempts = 0;
+    console.log('[ThreatStream] Connected to PayGuard Shield Engine');
+  };
 
-  socket.on('disconnect', (reason) => {
-    console.log('[ThreatStream] ❌ Disconnected:', reason);
-  });
+  ws.onmessage = (event) => {
+    let frame: { type?: string; data?: unknown };
+    try {
+      frame = JSON.parse(event.data);
+    } catch {
+      return;
+    }
+    if (!frame.type) return;
+    emit(frame.type, frame.data ?? {});
+  };
 
-  socket.on('connect_error', (error) => {
-    console.error('[ThreatStream] Connection error:', error.message);
-  });
+  ws.onerror = (error: unknown) => {
+    console.error('[ThreatStream] Socket error:', error);
+  };
+
+  ws.onclose = () => {
+    if (socket === ws) socket = null;
+    console.log('[ThreatStream] Disconnected');
+    scheduleReconnect();
+  };
 };
 
-// ─────────────────────────────────────────────
-// 🔴 DISCONNECT
-// ─────────────────────────────────────────────
-
 /**
- * Disconnect from the WebSocket. Call this when user logs out.
- * 
- * WHY DISCONNECT ON LOGOUT?
- * If we don't disconnect, the socket stays open with the old user's
- * JWT token. When they log back in, they'd have two connections.
+ * Tear down the connection (logout).
  */
 export const disconnectFromShieldEngine = (): void => {
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-    console.log('[ThreatStream] Disconnected cleanly');
+  shouldReconnect = false;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
   }
+  if (socket) {
+    socket.close();
+    socket = null;
+  }
+  authToken = null;
+  console.log('[ThreatStream] Disconnected cleanly');
 };
 
 // ─────────────────────────────────────────────
 // 👂 EVENT LISTENERS
 // ─────────────────────────────────────────────
 
+function subscribe(eventName: string, handler: StreamHandler): () => void {
+  if (!listeners.has(eventName)) listeners.set(eventName, new Set());
+  listeners.get(eventName)!.add(handler);
+  return () => listeners.get(eventName)?.delete(handler);
+}
+
 /**
- * Listen for live risk score updates.
- * The backend emits this event when AI finishes analyzing a transfer.
- * 
- * Used by: the payment form screen to update the risk meter in real-time.
- * 
- * @param callback - called whenever a new risk assessment arrives
+ * Low-level subscription to a raw event type. Returns an unsubscribe fn.
  */
-export const listenForLiveRiskUpdates = (
-  callback: (riskData: RiskAssessmentResult) => void
-): void => {
-  socket?.on('RISK_SCORE_UPDATED', callback);
+export const onStreamEvent = (eventName: string, handler: StreamHandler): (() => void) =>
+  subscribe(eventName, handler);
+
+/**
+ * New threat alert — either a risk-flagged payment or a scored inbound SMS.
+ * The payload carries `{ alert_id?, severity, signal_id?, action? }`; the hook
+ * refreshes the full alert feed so details match what the API returns.
+ */
+export const listenForNewThreatAlerts = (callback: (alert: PayGuardThreatAlert) => void): void => {
+  subscribe('alert_new', (payload) => {
+    callback({ alertId: '', threatLevel: 'HIGH', threatCategory: 'INBOUND', description: 'New threat detected', requiresAction: true, issuedAt: new Date().toISOString(), ...(payload as Partial<PayGuardThreatAlert>) });
+  });
 };
 
 /**
- * Listen for new threat alerts.
- * Backend pushes this when a new security threat is detected.
- * 
- * Used by: the threat center screen to add new alerts in real time.
+ * Live risk score updates. The backend does not emit these yet — kept for
+ * forward-compat so the hook wiring is already in place.
  */
-export const listenForNewThreatAlerts = (
-  callback: (alert: PayGuardThreatAlert) => void
-): void => {
-  socket?.on('NEW_THREAT_ALERT', callback);
+export const listenForLiveRiskUpdates = (callback: (riskscore: number) => void): void => {
+  subscribe('risk_score_updated', (payload) => {
+    callback(((payload as { score?: number })?.score ?? 0));
+  });
 };
 
 /**
- * Listen for transaction status changes.
- * e.g. a PENDING_ANALYSIS transfer becomes COMPLETED or BLOCKED_BY_SHIELD.
- * 
- * Used by: the ledger screen to update status badges live.
+ * Payment status changes (e.g. PENDING_ANALYSIS → COMPLETED). Backend does not
+ * emit these yet — pull-based refresh still covers the ledger.
  */
 export const listenForTransferStatusUpdates = (
   callback: (payload: { transferId: string; status: string }) => void
 ): void => {
-  socket?.on('TRANSFER_STATUS_UPDATED', callback);
+  subscribe('payment_status_changed', (payload) => {
+    const p = payload as { transferId?: string; status?: string };
+    if (p.transferId && p.status) callback({ transferId: p.transferId, status: p.status });
+  });
 };
 
-// ─────────────────────────────────────────────
-// 🔇 REMOVE LISTENERS
-// ─────────────────────────────────────────────
-
 /**
- * Remove a specific event listener.
- * Call this in the useEffect cleanup to prevent memory leaks.
- * 
- * WHY IS THIS IMPORTANT?
- * React components can mount/unmount many times.
- * If we don't remove listeners, the old callback stays attached
- * even after the component is gone → memory leak + ghost updates.
+ * Remove all handlers for an event name.
  */
 export const removeListener = (eventName: string): void => {
-  socket?.off(eventName);
+  listeners.delete(eventName);
 };
 
-/**
- * Check if the socket is currently connected.
- */
 export const isConnected = (): boolean => {
-  return socket?.connected ?? false;
+  return socket?.readyState === WebSocket.OPEN;
 };
