@@ -54,6 +54,7 @@ export interface PipelineSnapshot {
 export interface Scenario {
   id: string;
   name: string;
+  recipientName: string;
   amount: number;
   description: string;
   note: string;
@@ -63,6 +64,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: "salary",
     name: "John Carter — Salary",
+    recipientName: "John Carter",
     amount: 8000,
     description: "Salary transfer",
     note: "Verified beneficiary, recurring",
@@ -70,6 +72,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: "booking",
     name: "Blue Lotus Events",
+    recipientName: "Blue Lotus Events",
     amount: 25000,
     description: "Booking deposit",
     note: "New unverified beneficiary",
@@ -77,6 +80,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: "twofa",
     name: "Customer Care 2FA",
+    recipientName: "Customer Care 2FA",
     amount: 1800,
     description: "Card verification fee",
     note: "Impersonation + urgency cues",
@@ -84,6 +88,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: "invoice",
     name: "Invoice Desk",
+    recipientName: "Invoice Desk",
     amount: 200000,
     description: "Pending invoice settlement",
     note: "Critical amount to unknown",

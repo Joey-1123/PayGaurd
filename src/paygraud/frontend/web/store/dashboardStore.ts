@@ -6,7 +6,9 @@ import {
   fetchAlerts,
   fetchPayments,
   fetchPipeline,
+  fetchRecipients,
   fetchTrace,
+  type Recipient,
 } from "@/lib/api";
 import type { Alert, Payment, PipelineSnapshot, TraceEvent } from "@/lib/types";
 
@@ -25,7 +27,12 @@ interface DashboardState {
   run: RunState;
   loading: boolean;
   refresh: () => Promise<void>;
-  runScenario: (id: string, amount: number, description: string) => Promise<void>;
+  runScenario: (
+    id: string,
+    amount: number,
+    description: string,
+    recipientName?: string
+  ) => Promise<void>;
   setPipeline: (pipeline: PipelineSnapshot) => void;
 }
 
@@ -54,10 +61,15 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     }
   },
 
-  runScenario: async (scenarioId, amount, description) => {
+  runScenario: async (scenarioId, amount, description, recipientName) => {
     set({ run: { ...initialRun, scenarioId, status: "creating" } });
     try {
-      const payment = await createPayment(amount, description);
+      let recipientId: string | undefined;
+      if (recipientName) {
+        const recipients: Recipient[] = await fetchRecipients();
+        recipientId = recipients.find((r) => r.name === recipientName)?.id;
+      }
+      const payment = await createPayment(amount, description, recipientId);
       const paymentId = payment.id;
       set({ run: { scenarioId, status: "analyzing", paymentId, trace: [], message: null } });
       const analyzed = await analyzePayment(paymentId);

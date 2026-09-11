@@ -21,7 +21,9 @@ export default function ScenarioRunner() {
           return (
             <button
               key={scenario.id}
-              onClick={() => runScenario(scenario.id, scenario.amount, scenario.description)}
+              onClick={() =>
+                runScenario(scenario.id, scenario.amount, scenario.description, scenario.recipientName)
+              }
               disabled={busy}
               className="flex flex-col gap-2 rounded-card border border-line bg-card p-4 text-left transition hover:border-ink/40 disabled:opacity-60"
             >

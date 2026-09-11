@@ -47,9 +47,24 @@ export async function fetchPayments(): Promise<Payment[]> {
   return data;
 }
 
-export async function createPayment(amount: number, description: string): Promise<Payment> {
+export interface Recipient {
+  id: string;
+  name: string;
+  account_number: string;
+}
+
+export async function fetchRecipients(): Promise<Recipient[]> {
+  const { data } = await api.get<Recipient[]>("/recipients");
+  return data;
+}
+
+export async function createPayment(
+  amount: number,
+  description: string,
+  recipientId?: string
+): Promise<Payment> {
   const { data } = await api.post<Payment>("/payments", {
-    recipient_id: null,
+    recipient_id: recipientId ?? null,
     amount,
     currency: "INR",
     description,
