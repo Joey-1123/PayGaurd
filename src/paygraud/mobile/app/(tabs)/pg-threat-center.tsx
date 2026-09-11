@@ -27,6 +27,7 @@ import {
   IconRotateCcw,
   IconRadio,
 } from '@/components/icons/PayGuardIcons';
+import { PayGuardColors as C, PayGuardAlpha as A, PayGuardMonoFont } from '@/constants/payGuardTheme';
 import { PayGuardNetworkClient } from '@/services/PayGuardNetworkClient';
 import { usePayGuardThreats } from '@/store/threatIntelligenceStore';
 
@@ -158,7 +159,7 @@ export default function PgScanScreen() {
           accessibilityLabel="Go back"
           accessibilityRole="button"
         >
-          <IconArrowLeft size={20} color="#FFFFFF" />
+          <IconArrowLeft size={20} color={C.gray.white} />
         </Pressable>
         <Text style={styles.topTitle}>SCAN & ANALYZE</Text>
         <Pressable
@@ -172,7 +173,7 @@ export default function PgScanScreen() {
           accessibilityLabel="Toggle Flashlight Torch"
           accessibilityRole="button"
         >
-          <IconZap size={18} color={torch ? '#000000' : '#FFFFFF'} />
+          <IconZap size={18} color={torch ? C.gray.black : C.gray.white} />
         </Pressable>
       </View>
 
@@ -194,7 +195,7 @@ export default function PgScanScreen() {
                   />
                 ) : (
                   <View style={styles.permissionPlaceholder}>
-                    <IconShieldAlert size={28} color="#888888" />
+                    <IconShieldAlert size={28} color={C.gray[500]} />
                     <Text style={styles.permissionTitle}>CAMERA PERMISSION</Text>
                     <Text style={styles.permissionSub}>Required to scan recipient QR codes</Text>
                     <Pressable
@@ -231,7 +232,7 @@ export default function PgScanScreen() {
             </View>
 
             <View style={styles.statusPill}>
-              <IconShieldCheck size={16} color="#00FF66" strokeWidth={2.2} />
+              <IconShieldCheck size={16} color={C.risk.safe} strokeWidth={2.2} />
               <Text style={styles.statusPillText}>
                 {torch ? 'Torch Active · AI Radar Scanning' : 'AI Defense Guardrail Active · Live Radar'}
               </Text>
@@ -251,7 +252,7 @@ export default function PgScanScreen() {
                 }
                 accessibilityRole="button"
               >
-                <IconCheck size={16} color="#00FF66" strokeWidth={2.5} />
+                <IconCheck size={16} color={C.risk.safe} strokeWidth={2.5} />
                 <Text style={styles.testBtnText}>Normal Merchant</Text>
               </Pressable>
 
@@ -266,7 +267,7 @@ export default function PgScanScreen() {
                 }
                 accessibilityRole="button"
               >
-                <IconX size={16} color="#FF2A2A" strokeWidth={2.5} />
+                <IconX size={16} color={C.risk.critical} strokeWidth={2.5} />
                 <Text style={styles.testBtnDangerText}>Malicious Scammer</Text>
               </Pressable>
             </View>
@@ -276,7 +277,7 @@ export default function PgScanScreen() {
         {/* ANALYZING SPINNER */}
         {analyzing && (
           <View style={styles.analyzingCard}>
-            <ActivityIndicator color="#FFFFFF" size="large" />
+            <ActivityIndicator color={C.gray.white} size="large" />
             <Text style={styles.analyzingTitle}>TRANSMITTING TO BACKEND AI...</Text>
             <Text style={styles.analyzingSub}>
               Evaluating receiver identity, velocity signatures & synthetic fraud models
@@ -311,7 +312,7 @@ export default function PgScanScreen() {
                 onChangeText={setAmount}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
-                placeholderTextColor="#555"
+                placeholderTextColor={C.gray[700]}
               />
             </View>
 
@@ -339,7 +340,7 @@ export default function PgScanScreen() {
               }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <IconRotateCcw size={14} color="#888888" />
+              <IconRotateCcw size={14} color={C.gray[500]} />
               <Text style={styles.cancelText}>Scan Another Target</Text>
             </Pressable>
           </View>
@@ -349,7 +350,7 @@ export default function PgScanScreen() {
         {scanResult && scanResult.status === 'FRAUDSTER' && (
           <View style={styles.fraudCard}>
             <View style={styles.fraudIconBox}>
-              <IconShieldAlert size={32} color="#FFFFFF" strokeWidth={2.4} />
+              <IconShieldAlert size={32} color={C.gray.white} strokeWidth={2.4} />
             </View>
 
             <Text style={styles.fraudTitle}>FRAUDSTER DETECTED</Text>
@@ -369,7 +370,7 @@ export default function PgScanScreen() {
             </View>
 
             <View style={styles.blockedPill}>
-              <IconShieldAlert size={14} color="#FF2A2A" />
+              <IconShieldAlert size={14} color={C.risk.critical} />
               <Text style={styles.blockedPillText}>RECEIVER PERMANENTLY BLACKLISTED</Text>
             </View>
 
@@ -403,7 +404,7 @@ export default function PgScanScreen() {
               <View key={alert.alertId} style={styles.alertRow}>
                 <View style={styles.alertHeader}>
                   <Text style={styles.alertCategory}>{alert.threatCategory}</Text>
-                  <Text style={[styles.alertStatus, alert.isBlocked && { color: '#FF2A2A' }]}>
+                  <Text style={[styles.alertStatus, alert.isBlocked && { color: C.risk.critical }]}>
                     {alert.isBlocked ? 'BLOCKED' : 'MONITORING'}
                   </Text>
                 </View>
@@ -420,7 +421,7 @@ export default function PgScanScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: C.gray.black,
   },
   topBar: {
     flexDirection: 'row',
@@ -433,21 +434,21 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#0E0E0E',
+    backgroundColor: C.background.input,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: A.white(0.15),
     alignItems: 'center',
     justifyContent: 'center',
   },
   topBtnActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
   },
   btnPressed: {
     opacity: 0.75,
     transform: [{ scale: 0.98 }],
   },
   topTitle: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 2,
@@ -467,10 +468,10 @@ const styles = StyleSheet.create({
   },
   viewfinder: {
     flex: 1,
-    backgroundColor: '#080808',
+    backgroundColor: C.gray.deep,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: A.white(0.08),
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -483,25 +484,25 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   permissionTitle: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1,
   },
   permissionSub: {
-    color: '#777777',
+    color: C.gray[700],
     fontSize: 10,
     textAlign: 'center',
     marginBottom: 6,
   },
   permissionBtn: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 10,
   },
   permissionBtnText: {
-    color: '#000000',
+    color: C.gray.black,
     fontSize: 11,
     fontWeight: 'bold',
   },
@@ -509,7 +510,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 32,
     height: 32,
-    borderColor: '#FFFFFF',
+    borderColor: C.gray.white,
   },
   cornerTL: {
     top: 10,
@@ -545,13 +546,13 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     height: 2,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
+    shadowColor: C.gray.white,
     shadowOpacity: 0.8,
     shadowRadius: 8,
   },
   viewfinderHint: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 11,
     letterSpacing: 0.5,
   },
@@ -559,24 +560,24 @@ const styles = StyleSheet.create({
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: A.white(0.1),
     gap: 8,
     marginBottom: 32,
   },
   statusPillText: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 11,
     fontWeight: '500',
   },
 
   // TEST BUTTONS
   testSectionTitle: {
-    color: '#555555',
+    color: C.gray[700],
     fontSize: 10,
     fontWeight: 'bold',
     letterSpacing: 1.5,
@@ -590,25 +591,25 @@ const styles = StyleSheet.create({
   testBtn: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: '#0E0E0E',
+    backgroundColor: C.background.input,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: A.white(0.15),
     gap: 8,
   },
   testBtnText: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 12,
     fontWeight: '600',
   },
   testBtnDanger: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 42, 42, 0.08)',
-    borderColor: 'rgba(255, 42, 42, 0.4)',
+    backgroundColor: A.danger(0.08),
+    borderColor: A.danger(0.4),
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
@@ -617,7 +618,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   testBtnDangerText: {
-    color: '#FF2A2A',
+    color: C.risk.critical,
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -625,15 +626,15 @@ const styles = StyleSheet.create({
   // ANALYZING
   analyzingCard: {
     width: '100%',
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 24,
     padding: 32,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: A.white(0.15),
   },
   analyzingTitle: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 13,
     fontWeight: 'bold',
     letterSpacing: 1.5,
@@ -641,7 +642,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   analyzingSub: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 18,
@@ -650,11 +651,11 @@ const styles = StyleSheet.create({
   // SAFE RESULT
   safeResultCard: {
     width: '100%',
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 24,
     padding: 22,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: A.white(0.2),
   },
   safeHeader: {
     flexDirection: 'row',
@@ -666,70 +667,70 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#00FF66',
+    backgroundColor: C.risk.safe,
     alignItems: 'center',
     justifyContent: 'center',
   },
   safeBadge: {
-    color: '#00FF66',
+    color: C.risk.safe,
     fontSize: 9,
     fontWeight: 'bold',
     letterSpacing: 1,
     marginBottom: 2,
   },
   safeName: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 18,
     fontWeight: 'bold',
   },
   safeAccount: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 11,
     marginTop: 2,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: PayGuardMonoFont,
   },
   verdictBox: {
-    backgroundColor: '#141414',
+    backgroundColor: C.gray[950],
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: A.white(0.08),
     marginBottom: 16,
   },
   verdictLabel: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 10,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   verdictText: {
-    color: '#AAAAAA',
+    color: C.gray[400],
     fontSize: 11,
   },
   amountInputBlock: {
     marginBottom: 16,
   },
   amountLabel: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 9,
     fontWeight: 'bold',
     letterSpacing: 1,
     marginBottom: 6,
   },
   amountInput: {
-    backgroundColor: '#141414',
-    color: '#FFFFFF',
+    backgroundColor: C.gray[950],
+    color: C.gray.white,
     fontSize: 22,
     fontWeight: 'bold',
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    borderColor: A.white(0.1),
+    fontFamily: PayGuardMonoFont,
   },
   payNowBtn: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
@@ -738,7 +739,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   payNowText: {
-    color: '#000000',
+    color: C.gray.black,
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -750,38 +751,38 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   cancelText: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 12,
   },
 
   // FRAUDSTER CARD
   fraudCard: {
     width: '100%',
-    backgroundColor: '#100505',
+    backgroundColor: C.surface.dangerCard,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1.5,
-    borderColor: '#FF2A2A',
+    borderColor: C.risk.critical,
     alignItems: 'center',
   },
   fraudIconBox: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#FF2A2A',
+    backgroundColor: C.risk.critical,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   fraudTitle: {
-    color: '#FF2A2A',
+    color: C.risk.critical,
     fontSize: 20,
     fontWeight: '900',
     letterSpacing: 1.5,
     marginBottom: 4,
   },
   fraudSub: {
-    color: '#AAAAAA',
+    color: C.gray[400],
     fontSize: 10,
     fontWeight: 'bold',
     letterSpacing: 0.5,
@@ -790,74 +791,74 @@ const styles = StyleSheet.create({
   },
   fraudDetailsBox: {
     width: '100%',
-    backgroundColor: '#180808',
+    backgroundColor: C.surface.dangerInset,
     padding: 16,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 42, 42, 0.3)',
+    borderColor: A.danger(0.3),
     marginBottom: 16,
   },
   fraudKey: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 9,
     fontWeight: 'bold',
     letterSpacing: 1,
     marginBottom: 2,
   },
   fraudVal: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 15,
     fontWeight: 'bold',
   },
   fraudAccount: {
-    color: '#FF2A2A',
+    color: C.risk.critical,
     fontSize: 11,
     marginBottom: 10,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: PayGuardMonoFont,
   },
   fraudDivider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: A.white(0.08),
     marginVertical: 10,
   },
   fraudReason: {
-    color: '#DDDDDD',
+    color: C.gray[200],
     fontSize: 11,
     lineHeight: 16,
   },
   blockedPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 42, 42, 0.15)',
+    backgroundColor: A.danger(0.15),
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 42, 42, 0.4)',
+    borderColor: A.danger(0.4),
     gap: 8,
     marginBottom: 20,
   },
   blockedPillText: {
-    color: '#FF2A2A',
+    color: C.risk.critical,
     fontSize: 10,
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
   dismissBtn: {
     width: '100%',
-    backgroundColor: '#FF2A2A',
+    backgroundColor: C.risk.critical,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
   },
   dismissBtnText: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 13,
     fontWeight: 'bold',
   },
   signalLabBtn: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
@@ -867,7 +868,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   signalLabBtnText: {
-    color: '#000000',
+    color: C.gray.black,
     fontSize: 13,
     fontWeight: 'bold',
   },
@@ -876,19 +877,19 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   alertsSectionTitle: {
-    color: '#555555',
+    color: C.gray[700],
     fontSize: 10,
     fontWeight: 'bold',
     letterSpacing: 1.5,
     marginBottom: 10,
   },
   alertRow: {
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: A.white(0.08),
   },
   alertHeader: {
     flexDirection: 'row',
@@ -896,18 +897,18 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   alertCategory: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 10,
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
   alertStatus: {
-    color: '#00FF66',
+    color: C.risk.safe,
     fontSize: 10,
     fontWeight: 'bold',
   },
   alertDesc: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 11,
     lineHeight: 16,
   },

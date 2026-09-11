@@ -24,6 +24,7 @@ import {
   IconZap,
 } from '@/components/icons/PayGuardIcons';
 import { PayGuardNetworkClient } from '@/services/PayGuardNetworkClient';
+import { PayGuardColors as C } from '@/constants/payGuardTheme';
 import type { PayGuardInboundSignal } from '@/types/payGuardModels';
 
 const PRESETS: { label: string; sender: string; body: string }[] = [
@@ -50,9 +51,9 @@ const PRESETS: { label: string; sender: string; body: string }[] = [
 ];
 
 function getVerdictColor(score: number): string {
-  if (score <= 30) return '#00FF66';
-  if (score <= 60) return '#FFB800';
-  return '#FF2A2A';
+  if (score <= 30) return C.risk.safe;
+  if (score <= 60) return C.risk.warn;
+  return C.risk.critical;
 }
 
 function getVerdictLabel(score: number): string {
@@ -143,7 +144,7 @@ export default function PgSignalCaptureScreen() {
           value={sender}
           onChangeText={setSender}
           placeholder="Sender (e.g. VM-HDFCBK)"
-          placeholderTextColor="#444444"
+          placeholderTextColor={C.gray[750]}
           autoCapitalize="characters"
         />
         <TextInput
@@ -151,7 +152,7 @@ export default function PgSignalCaptureScreen() {
           value={body}
           onChangeText={setBody}
           placeholder="Paste or type SMS content..."
-          placeholderTextColor="#444444"
+          placeholderTextColor={C.gray[750]}
           multiline
           numberOfLines={5}
           textAlignVertical="top"
@@ -177,11 +178,11 @@ export default function PgSignalCaptureScreen() {
           <View style={[styles.verdictCard, { borderColor: getVerdictColor(score) }]}>
             <View style={styles.verdictHeader}>
               {score <= 30 ? (
-                <IconCheckCircle size={20} color="#00FF66" />
+                <IconCheckCircle size={20} color={C.risk.safe} />
               ) : score <= 60 ? (
-                <IconAlertOctagon size={20} color="#FFB800" />
+                <IconAlertOctagon size={20} color={C.risk.warn} />
               ) : (
-                <IconXCircle size={20} color="#FF2A2A" />
+                <IconXCircle size={20} color={C.risk.critical} />
               )}
               <Text style={[styles.verdictTitle, { color: getVerdictColor(score) }]}>
                 {getVerdictLabel(score)}
@@ -214,7 +215,7 @@ export default function PgSignalCaptureScreen() {
         {/* RECENT SIGNALS */}
         <Text style={[styles.sectionLabel, { marginTop: 28 }]}>RECENT SIGNALS</Text>
         {loadingRecent ? (
-          <ActivityIndicator color="#888888" style={{ marginTop: 16 }} />
+          <ActivityIndicator color={C.gray[500]} style={{ marginTop: 16 }} />
         ) : recentSignals.length === 0 ? (
           <Text style={styles.emptyText}>No signals captured yet.</Text>
         ) : (
@@ -247,7 +248,7 @@ export default function PgSignalCaptureScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#000000' },
+  safeArea: { flex: 1, backgroundColor: C.gray.black },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -255,34 +256,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1A1A1A',
+    borderBottomColor: C.gray[900],
   },
   backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  topBarTitle: { color: '#FFFFFF', fontSize: 13, fontWeight: 'bold', letterSpacing: 1.5 },
+  topBarTitle: { color: C.gray.white, fontSize: 13, fontWeight: 'bold', letterSpacing: 1.5 },
   scroll: { paddingHorizontal: 20, paddingTop: 20 },
-  sectionLabel: { color: '#666666', fontSize: 10, fontWeight: 'bold', letterSpacing: 1.5, marginBottom: 10 },
+  sectionLabel: { color: C.gray[600], fontSize: 10, fontWeight: 'bold', letterSpacing: 1.5, marginBottom: 10 },
   presetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
   presetBtn: {
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: C.gray[800],
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
-  presetText: { color: '#FFFFFF', fontSize: 11, fontWeight: '600' },
+  presetText: { color: C.gray.white, fontSize: 11, fontWeight: '600' },
   input: {
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: C.gray[800],
     borderRadius: 10,
     padding: 12,
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 13,
     marginBottom: 10,
   },
   bodyInput: { height: 120 },
   analyzeBtn: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
@@ -290,7 +291,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 24,
   },
-  analyzeBtnText: { color: '#000000', fontSize: 14, fontWeight: 'bold' },
+  analyzeBtnText: { color: C.gray.black, fontSize: 14, fontWeight: 'bold' },
   verdictCard: {
     borderWidth: 1,
     borderRadius: 12,
@@ -299,23 +300,23 @@ const styles = StyleSheet.create({
   },
   verdictHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   verdictTitle: { fontSize: 16, fontWeight: 'bold' },
-  verdictScore: { color: '#FFFFFF', fontSize: 13, fontWeight: 'bold', marginLeft: 'auto' },
-  verdictSender: { color: '#888888', fontSize: 11, marginBottom: 8 },
+  verdictScore: { color: C.gray.white, fontSize: 13, fontWeight: 'bold', marginLeft: 'auto' },
+  verdictSender: { color: C.gray[500], fontSize: 11, marginBottom: 8 },
   flagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
-  flagPill: { backgroundColor: '#1A1A1A', borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8 },
-  flagText: { color: '#888888', fontSize: 10, fontWeight: '600' },
-  verdictReason: { color: '#CCCCCC', fontSize: 12, lineHeight: 18 },
-  emptyText: { color: '#666666', fontSize: 12, textAlign: 'center', marginTop: 16 },
+  flagPill: { backgroundColor: C.gray[900], borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8 },
+  flagText: { color: C.gray[500], fontSize: 10, fontWeight: '600' },
+  verdictReason: { color: C.gray[300], fontSize: 12, lineHeight: 18 },
+  emptyText: { color: C.gray[600], fontSize: 12, textAlign: 'center', marginTop: 16 },
   signalRow: {
     borderWidth: 1,
-    borderColor: '#1A1A1A',
+    borderColor: C.gray[900],
     borderRadius: 10,
     padding: 12,
     marginBottom: 8,
   },
   signalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  signalSender: { color: '#FFFFFF', fontSize: 11, fontWeight: 'bold' },
+  signalSender: { color: C.gray.white, fontSize: 11, fontWeight: 'bold' },
   signalScore: { fontSize: 11, fontWeight: 'bold' },
-  signalBody: { color: '#888888', fontSize: 11, lineHeight: 16 },
+  signalBody: { color: C.gray[500], fontSize: 11, lineHeight: 16 },
   btnPressed: { opacity: 0.7 },
 });

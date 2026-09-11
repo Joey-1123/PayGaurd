@@ -6,17 +6,15 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { IconCheck, IconX, IconFileDown, IconShieldAlert } from '@/components/icons/PayGuardIcons';
-import { MOCK_TRANSFERS } from '@/utils/mockData';
 import { usePayGuardLedgerData } from '@/hooks/usePayGuardLedger';
 import { formatPayGuardCurrency, timeAgo } from '@/utils/payGuardFormatters';
+import { PayGuardColors as C, PayGuardAlpha as A, PayGuardMonoFont } from '@/constants/payGuardTheme';
 
 export default function PgLedgerScreen() {
   const [filter, setFilter] = useState<'ALL' | 'CLEARED' | 'BLOCKED'>('ALL');
   const { transfers, isFetching, refresh } = usePayGuardLedgerData();
 
-  const source = transfers.length ? transfers : MOCK_TRANSFERS;
-
-  const filteredTransfers = source.filter((t) => {
+  const filteredTransfers = transfers.filter((t) => {
     if (filter === 'CLEARED') return t.transferStatus === 'COMPLETED';
     if (filter === 'BLOCKED') return t.transferStatus === 'BLOCKED_BY_SHIELD';
     return true;
@@ -43,7 +41,7 @@ export default function PgLedgerScreen() {
           accessibilityLabel="Export ledger report"
           accessibilityRole="button"
         >
-          <IconFileDown size={14} color="#FFFFFF" />
+          <IconFileDown size={14} color={C.gray.white} />
           <Text style={styles.exportText}>Export</Text>
         </Pressable>
       </View>
@@ -84,9 +82,9 @@ export default function PgLedgerScreen() {
             >
               <View style={[styles.avatarBox, isBlocked && styles.avatarBoxBlocked]}>
                 {isBlocked ? (
-                  <IconX size={16} color="#FF2A2A" strokeWidth={2.5} />
+                  <IconX size={16} color={C.risk.critical} strokeWidth={2.5} />
                 ) : (
-                  <IconCheck size={16} color="#00FF66" strokeWidth={2.5} />
+                  <IconCheck size={16} color={C.risk.safe} strokeWidth={2.5} />
                 )}
               </View>
 
@@ -111,7 +109,7 @@ export default function PgLedgerScreen() {
 
         {filteredTransfers.length === 0 && (
           <View style={styles.emptyState}>
-            <IconShieldAlert size={36} color="#444444" />
+            <IconShieldAlert size={36} color={C.gray[750]} />
             <Text style={styles.emptyTitle}>NO TRANSACTIONS</Text>
             <Text style={styles.emptySub}>No events found under this filter</Text>
           </View>
@@ -124,7 +122,7 @@ export default function PgLedgerScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: C.gray.black,
   },
   header: {
     flexDirection: 'row',
@@ -135,29 +133,29 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   title: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: 2,
   },
   subtitle: {
-    color: '#8E8E93',
+    color: C.text.secondary,
     fontSize: 11,
     marginTop: 2,
   },
   exportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0E0E0E',
+    backgroundColor: C.background.input,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: A.white(0.12),
     gap: 6,
   },
   exportText: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -171,21 +169,21 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: A.white(0.12),
   },
   filterChipActive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
+    borderColor: C.gray.white,
   },
   filterText: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 11,
     fontWeight: '600',
   },
   filterTextActive: {
-    color: '#000000',
+    color: C.gray.black,
     fontWeight: '700',
   },
   list: {
@@ -196,16 +194,16 @@ const styles = StyleSheet.create({
   itemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     padding: 16,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: A.white(0.08),
     gap: 14,
   },
   itemCardBlocked: {
-    backgroundColor: 'rgba(255, 42, 42, 0.04)',
-    borderColor: 'rgba(255, 42, 42, 0.25)',
+    backgroundColor: A.danger(0.04),
+    borderColor: A.danger(0.25),
   },
   btnPressed: {
     opacity: 0.75,
@@ -214,51 +212,51 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#161616',
+    backgroundColor: C.gray[925],
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: A.white(0.1),
   },
   avatarBoxBlocked: {
-    borderColor: 'rgba(255, 42, 42, 0.4)',
-    backgroundColor: 'rgba(255, 42, 42, 0.1)',
+    borderColor: A.danger(0.4),
+    backgroundColor: A.danger(0.1),
   },
   infoCol: {
     flex: 1,
   },
   name: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 14,
     fontWeight: '700',
     marginBottom: 3,
   },
   timeMeta: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 10,
   },
   amountCol: {
     alignItems: 'flex-end',
   },
   amount: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 14,
     fontWeight: '700',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: PayGuardMonoFont,
   },
   amountBlocked: {
-    color: '#FF2A2A',
+    color: C.risk.critical,
     textDecorationLine: 'line-through',
   },
   statusText: {
-    color: '#00FF66',
+    color: C.risk.safe,
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.5,
     marginTop: 3,
   },
   statusBlocked: {
-    color: '#FF2A2A',
+    color: C.risk.critical,
   },
   emptyState: {
     alignItems: 'center',
@@ -266,13 +264,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   emptyTitle: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 13,
     fontWeight: 'bold',
     letterSpacing: 1,
   },
   emptySub: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 11,
   },
 });

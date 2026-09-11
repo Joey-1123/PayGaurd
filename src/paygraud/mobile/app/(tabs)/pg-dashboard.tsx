@@ -1,8 +1,16 @@
 // Location: app/(tabs)/pg-dashboard.tsx
 // Rethought with UI-UX-Pro-Max, Anti-UI-Slop & Web Design Guidelines
+// All styling via payGuardTheme tokens — zero hardcoded hex values.
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  RefreshControl,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
@@ -21,22 +29,30 @@ import { usePayGuardSession } from '@/store/payGuardSessionStore';
 import { usePayGuardLedgerData } from '@/hooks/usePayGuardLedger';
 import { PayGuardNetworkClient } from '@/services/PayGuardNetworkClient';
 import { formatPayGuardCurrency, timeAgo } from '@/utils/payGuardFormatters';
-import { MOCK_TRANSFERS, MOCK_TELEMETRY } from '@/utils/mockData';
 import type { PayGuardTelemetry } from '@/types/payGuardModels';
+import { PayGuardColors as C, PayGuardAlpha as A, PayGuardMonoFont } from '@/constants/payGuardTheme';
 
 export default function PgDashboardScreen() {
   const { activeIdentity } = usePayGuardSession();
-  const { transfers } = usePayGuardLedgerData();
+  const { transfers, isFetching, error: ledgerError, refresh } = usePayGuardLedgerData();
   const [telemetry, setTelemetry] = useState<PayGuardTelemetry | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadTelemetry = useCallback(async () => {
     try {
       const data = await PayGuardNetworkClient.fetchTelemetry();
       setTelemetry(data);
     } catch {
-      // backend offline — keep MOCK_TELEMETRY fallback
+      // backend unreachable — surface a neutral state instead of fake numbers
+      setTelemetry(null);
     }
   }, []);
+
+  const refreshAll = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadTelemetry(), refresh()]);
+    setRefreshing(false);
+  }, [loadTelemetry, refresh]);
 
   useEffect(() => {
     loadTelemetry();
@@ -44,14 +60,41 @@ export default function PgDashboardScreen() {
     return () => clearInterval(timer);
   }, [loadTelemetry]);
 
-  const firstName = activeIdentity?.fullName?.split(' ')[0] ?? 'Alex';
-  const recentTransfers = (transfers.length ? transfers : MOCK_TRANSFERS).slice(0, 4);
-  const activeAlerts = telemetry?.activeAlerts ?? MOCK_TELEMETRY.activeAlerts;
+  const firstName = activeIdentity?.fullName?.split(' ')[0] ?? 'there';
+  const recentTransfers = transfers.slice(0, 4);
+  const activeAlerts = telemetry?.activeAlerts ?? 0;
+
+  // Real settled volume from the ledger — no fabricated balance.
+  const settledVolume = useMemo(() => {
+    const settled = transfers.filter((t) => t.transferStatus === 'COMPLETED');
+    if (settled.length === 0) return null;
+    const currency = settled[0].currencyCode;
+    const total = settled
+      .filter((t) => t.currencyCode === currency)
+      .reduce((sum, t) => sum + t.amount, 0);
+    return { currency, total };
+  }, [transfers]);
+
+  // Masked identity card numbers derived from the real session.
+  const maskedId = activeIdentity
+    ? `PG · ${(activeIdentity.pgId || '').slice(-4).toUpperCase() || '····'}`
+    : 'PG · ····';
+  const memberSince = activeIdentity?.createdAt
+    ? new Date(activeIdentity.createdAt).getFullYear().toString()
+    : '—';
+
+  const showSkeleton = isFetching && recentTransfers.length === 0;
+  const showOffline = !isFetching && !!ledgerError && recentTransfers.length === 0;
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refreshAll} tintColor={C.gray.white} />
+        }
+      >
         {/* TOP APP BAR */}
         <View style={styles.topBar}>
           <View>
@@ -65,7 +108,7 @@ export default function PgDashboardScreen() {
             accessibilityLabel="View Security Settings and Notifications"
             accessibilityRole="button"
           >
-            <IconBell size={20} color="#FFFFFF" strokeWidth={2} />
+            <IconBell size={20} color={C.gray.white} strokeWidth={2} />
             {activeAlerts > 0 && (
               <View style={styles.badgeDot}>
                 <Text style={styles.badgeText}>{activeAlerts}</Text>
@@ -74,17 +117,17 @@ export default function PgDashboardScreen() {
           </Pressable>
         </View>
 
-        {/* FAMPAY TITANIUM CARD */}
+        {/* IDENTITY CARD (real session data) */}
         <View style={styles.cardContainer}>
           <View style={styles.titaniumCard}>
             {/* Top row */}
             <View style={styles.cardHeader}>
               <View>
                 <Text style={styles.cardBrand}>PAYGUARD</Text>
-                <Text style={styles.cardSubtitle}>TITANIUM // AI RAIL</Text>
+                <Text style={styles.cardSubtitle}>SECURE RAIL // AI DEFENSE</Text>
               </View>
               <View style={styles.cardChipGroup}>
-                <IconWifi size={18} color="#888888" style={{ transform: [{ rotate: '90deg' }] }} />
+                <IconWifi size={18} color={C.gray[500]} style={{ transform: [{ rotate: '90deg' }] }} />
                 <View style={styles.emvChip}>
                   <View style={styles.emvInnerGrid} />
                 </View>
@@ -93,14 +136,18 @@ export default function PgDashboardScreen() {
 
             {/* Balance */}
             <View style={styles.balanceSection}>
-              <Text style={styles.balanceLabel}>TOTAL BALANCE</Text>
-              <Text style={styles.balanceNumber}>$4,950.00</Text>
+              <Text style={styles.balanceLabel}>SETTLED VOLUME</Text>
+              <Text style={styles.balanceNumber}>
+                {settledVolume
+                  ? formatPayGuardCurrency(settledVolume.total, settledVolume.currency)
+                  : '—'}
+              </Text>
             </View>
 
             {/* Footer */}
             <View style={styles.cardFooter}>
-              <Text style={styles.cardNumber}>•••• •••• •••• 4521</Text>
-              <Text style={styles.cardExpiry}>08/29</Text>
+              <Text style={styles.cardNumber}>{maskedId}</Text>
+              <Text style={styles.cardExpiry}>{memberSince}</Text>
             </View>
           </View>
         </View>
@@ -113,7 +160,7 @@ export default function PgDashboardScreen() {
             accessibilityLabel="Scan QR code to pay"
             accessibilityRole="button"
           >
-            <IconQrCode size={22} color="#000000" strokeWidth={2.2} />
+            <IconQrCode size={22} color={C.gray.black} strokeWidth={2.2} />
             <Text style={styles.actionTextPrimary}>Scan QR</Text>
           </Pressable>
 
@@ -123,7 +170,7 @@ export default function PgDashboardScreen() {
             accessibilityLabel="Send payment"
             accessibilityRole="button"
           >
-            <IconArrowUpRight size={22} color="#FFFFFF" strokeWidth={2} />
+            <IconArrowUpRight size={22} color={C.gray.white} strokeWidth={2} />
             <Text style={styles.actionText}>Send</Text>
           </Pressable>
 
@@ -132,7 +179,7 @@ export default function PgDashboardScreen() {
             accessibilityLabel="Receive payment"
             accessibilityRole="button"
           >
-            <IconArrowDownLeft size={22} color="#FFFFFF" strokeWidth={2} />
+            <IconArrowDownLeft size={22} color={C.gray.white} strokeWidth={2} />
             <Text style={styles.actionText}>Receive</Text>
           </Pressable>
 
@@ -141,14 +188,14 @@ export default function PgDashboardScreen() {
             accessibilityLabel="Add funds to balance"
             accessibilityRole="button"
           >
-            <IconPlus size={22} color="#FFFFFF" strokeWidth={2} />
+            <IconPlus size={22} color={C.gray.white} strokeWidth={2} />
             <Text style={styles.actionText}>Add</Text>
           </Pressable>
         </View>
 
         {/* AI DEFENSE STATUS PILL */}
         <View style={styles.statusPill}>
-          <IconShieldCheck size={18} color="#00FF66" strokeWidth={2.2} />
+          <IconShieldCheck size={18} color={C.risk.safe} strokeWidth={2.2} />
           <Text style={styles.statusText}>
             AI Defense Rails Active · Automated Fraud Interlock
           </Text>
@@ -163,12 +210,23 @@ export default function PgDashboardScreen() {
             style={styles.viewAllRow}
           >
             <Text style={styles.viewAllText}>View All</Text>
-            <IconChevronRight size={14} color="#888888" />
+            <IconChevronRight size={14} color={C.gray[500]} />
           </Pressable>
         </View>
 
         <View style={styles.txListContainer}>
-          {recentTransfers.map((t, idx) => {
+          {showSkeleton && (
+            <Text style={styles.listNote}>Loading transactions…</Text>
+          )}
+          {showOffline && (
+            <Text style={styles.listNote}>
+              Can't reach the shield engine — check the backend connection.
+            </Text>
+          )}
+          {!showSkeleton && !showOffline && recentTransfers.length === 0 && (
+            <Text style={styles.listNote}>No transactions yet — send your first payment.</Text>
+          )}
+          {recentTransfers.map((t) => {
             const isBlocked = t.transferStatus === 'BLOCKED_BY_SHIELD';
             return (
               <Pressable
@@ -184,9 +242,9 @@ export default function PgDashboardScreen() {
               >
                 <View style={[styles.txIconWrapper, isBlocked && styles.txIconBlocked]}>
                   {isBlocked ? (
-                    <IconX size={16} color="#FF2A2A" strokeWidth={2.5} />
+                    <IconX size={16} color={C.risk.critical} strokeWidth={2.5} />
                   ) : (
-                    <IconCheck size={16} color="#00FF66" strokeWidth={2.5} />
+                    <IconCheck size={16} color={C.risk.safe} strokeWidth={2.5} />
                   )}
                 </View>
 
@@ -219,7 +277,7 @@ export default function PgDashboardScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: C.gray.black,
   },
   scroll: {
     paddingHorizontal: 20,
@@ -235,13 +293,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   brandTitle: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: 2.5,
   },
   userGreeting: {
-    color: '#8E8E93',
+    color: C.text.secondary,
     fontSize: 12,
     marginTop: 2,
     letterSpacing: 0.3,
@@ -250,9 +308,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: A.white(0.15),
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -264,12 +322,12 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#FF2A2A',
+    backgroundColor: C.risk.critical,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 9,
     fontWeight: 'bold',
   },
@@ -279,11 +337,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   titaniumCard: {
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderColor: A.white(0.16),
   },
   cardHeader: {
     flexDirection: 'row',
@@ -292,13 +350,13 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   cardBrand: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 16,
     fontWeight: '900',
     letterSpacing: 3,
   },
   cardSubtitle: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 9,
     fontWeight: 'bold',
     letterSpacing: 1.5,
@@ -314,48 +372,48 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: A.white(0.25),
     justifyContent: 'center',
     alignItems: 'center',
   },
   emvInnerGrid: {
     width: 20,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: A.white(0.35),
   },
   balanceSection: {
     marginBottom: 32,
   },
   balanceLabel: {
-    color: '#777777',
+    color: C.gray[700],
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.5,
     marginBottom: 6,
   },
   balanceNumber: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 38,
     fontWeight: '800',
     letterSpacing: -1,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: PayGuardMonoFont,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: A.white(0.08),
     paddingTop: 16,
   },
   cardNumber: {
-    color: '#AAAAAA',
+    color: C.gray[400],
     fontSize: 13,
     letterSpacing: 2,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: PayGuardMonoFont,
   },
   cardExpiry: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 12,
     fontWeight: '600',
   },
@@ -368,30 +426,30 @@ const styles = StyleSheet.create({
   },
   actionBtnPrimary: {
     flex: 1.2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
     borderRadius: 18,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   actionTextPrimary: {
-    color: '#000000',
+    color: C.gray.black,
     fontSize: 12,
     fontWeight: '700',
     marginTop: 6,
   },
   actionBtn: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 18,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: A.white(0.12),
   },
   actionText: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 12,
     fontWeight: '600',
     marginTop: 6,
@@ -405,17 +463,17 @@ const styles = StyleSheet.create({
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: A.white(0.08),
     gap: 10,
     marginBottom: 24,
   },
   statusText: {
-    color: '#AAAAAA',
+    color: C.gray[400],
     fontSize: 11,
     fontWeight: '500',
     letterSpacing: 0.2,
@@ -429,7 +487,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sectionTitle: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -439,14 +497,14 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   viewAllText: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 12,
   },
   txListContainer: {
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: A.white(0.08),
     overflow: 'hidden',
   },
   txItem: {
@@ -454,37 +512,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+    borderBottomColor: A.white(0.04),
     gap: 14,
   },
   txItemBlocked: {
-    backgroundColor: 'rgba(255, 42, 42, 0.04)',
+    backgroundColor: A.danger(0.04),
   },
   txIconWrapper: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#161616',
+    backgroundColor: C.gray[925],
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: A.white(0.1),
   },
   txIconBlocked: {
-    borderColor: 'rgba(255, 42, 42, 0.4)',
-    backgroundColor: 'rgba(255, 42, 42, 0.1)',
+    borderColor: A.danger(0.4),
+    backgroundColor: A.danger(0.1),
   },
   txInfo: {
     flex: 1,
   },
+  listNote: {
+    color: C.gray[600],
+    fontSize: 12,
+    textAlign: 'center' as const,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+  },
   txTitle: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 3,
   },
   txSubtitle: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 10,
     letterSpacing: 0.4,
   },
@@ -492,23 +557,23 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   txAmount: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 14,
     fontWeight: '700',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: PayGuardMonoFont,
   },
   txAmountBlocked: {
-    color: '#FF2A2A',
+    color: C.risk.critical,
     textDecorationLine: 'line-through',
   },
   txBadge: {
-    color: '#00FF66',
+    color: C.risk.safe,
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.5,
     marginTop: 3,
   },
   txBadgeBlocked: {
-    color: '#FF2A2A',
+    color: C.risk.critical,
   },
 });

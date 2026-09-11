@@ -22,15 +22,15 @@ import {
   IconArrowRight,
   IconShieldAlert,
 } from '@/components/icons/PayGuardIcons';
-import { MOCK_BENEFICIARIES } from '@/utils/mockData';
 import { calculateLocalRiskHeuristics } from '@/utils/payGuardRiskEvaluator';
 import { PayGuardNetworkClient } from '@/services/PayGuardNetworkClient';
+import { PayGuardColors as C, PayGuardAlpha as A, PayGuardMonoFont } from '@/constants/payGuardTheme';
 import type { PayGuardBeneficiary } from '@/types/payGuardModels';
 
 export default function PgInitiateTransferScreen() {
   const [amount, setAmount] = useState('8000');
-  const [beneficiaries, setBeneficiaries] = useState<PayGuardBeneficiary[]>(MOCK_BENEFICIARIES);
-  const [selectedBeneficiary, setSelectedBeneficiary] = useState(MOCK_BENEFICIARIES[0]);
+  const [beneficiaries, setBeneficiaries] = useState<PayGuardBeneficiary[]>([]);
+  const [selectedBeneficiary, setSelectedBeneficiary] = useState<PayGuardBeneficiary | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [pendingConfirmTransferId, setPendingConfirmTransferId] = useState<string | null>(null);
   const [verdict, setVerdict] = useState<{
@@ -49,7 +49,7 @@ export default function PgInitiateTransferScreen() {
         }
       })
       .catch(() => {
-        // backend offline — mocks stand in
+        // backend unreachable — beneficiary list stays empty (no mock injection)
       });
   }, []);
 
@@ -139,11 +139,11 @@ export default function PgInitiateTransferScreen() {
           accessibilityLabel="Go back"
           accessibilityRole="button"
         >
-          <IconArrowLeft size={20} color="#FFFFFF" />
+          <IconArrowLeft size={20} color={C.gray.white} />
         </Pressable>
         <Text style={styles.topBarTitle}>SEND PAYMENT</Text>
         <View style={styles.aiGuardPill}>
-          <IconShieldCheck size={14} color="#00FF66" />
+          <IconShieldCheck size={14} color={C.risk.safe} />
           <Text style={styles.aiGuardText}>AI GUARD</Text>
         </View>
       </View>
@@ -162,7 +162,7 @@ export default function PgInitiateTransferScreen() {
                 setVerdict(null);
               }}
               keyboardType="decimal-pad"
-              placeholderTextColor="#555555"
+              placeholderTextColor={C.gray[700]}
               placeholder="0.00"
             />
           </View>
@@ -193,6 +193,13 @@ export default function PgInitiateTransferScreen() {
 
         {/* SELECT BENEFICIARY */}
         <Text style={styles.sectionHeader}>SELECT BENEFICIARY</Text>
+        {beneficiaries.length === 0 && (
+          <View style={styles.emptyBeneficiaries}>
+            <Text style={styles.emptyBeneficiariesText}>
+              No beneficiaries yet. Create a recipient in the dashboard first.
+            </Text>
+          </View>
+        )}
         <View style={styles.beneficiaryList}>
           {beneficiaries.map((ben) => {
             const isSelected = selectedBeneficiary?.beneficiaryId === ben.beneficiaryId;
@@ -206,7 +213,7 @@ export default function PgInitiateTransferScreen() {
                 }}
               >
                 <View style={[styles.benAvatar, isSelected && styles.benAvatarActive]}>
-                  <Text style={[styles.benAvatarText, isSelected && { color: '#000000' }]}>
+                  <Text style={[styles.benAvatarText, isSelected && { color: C.gray.black }]}>
                     {ben.name.charAt(0)}
                   </Text>
                 </View>
@@ -226,7 +233,7 @@ export default function PgInitiateTransferScreen() {
         <View style={styles.riskMeterCard}>
           <View style={styles.riskMeterHeader}>
             <Text style={styles.riskMeterTitle}>PayGuard Pre-Flight Risk Radar</Text>
-            <Text style={[styles.riskScoreVal, { color: currentRisk > 70 ? '#FF2A2A' : currentRisk > 40 ? '#FFB800' : '#00FF66' }]}>
+            <Text style={[styles.riskScoreVal, { color: currentRisk > 70 ? C.risk.critical : currentRisk > 40 ? C.risk.warn : C.risk.safe }]}>
               {currentRisk}/100
             </Text>
           </View>
@@ -236,7 +243,7 @@ export default function PgInitiateTransferScreen() {
                 styles.riskBarFill,
                 {
                   width: `${Math.min(currentRisk, 100)}%`,
-                  backgroundColor: currentRisk > 70 ? '#FF2A2A' : currentRisk > 40 ? '#FFB800' : '#00FF66',
+                  backgroundColor: currentRisk > 70 ? C.risk.critical : currentRisk > 40 ? C.risk.warn : C.risk.safe,
                 },
               ]}
             />
@@ -260,11 +267,11 @@ export default function PgInitiateTransferScreen() {
           >
             <View style={styles.verdictHeader}>
               {verdict.decision === 'BLOCK' ? (
-                <IconShieldAlert size={18} color="#FF2A2A" />
+                <IconShieldAlert size={18} color={C.risk.critical} />
               ) : verdict.decision === 'STEP_UP_2FA' ? (
-                <IconAlertOctagon size={18} color="#FFB800" />
+                <IconAlertOctagon size={18} color={C.risk.warn} />
               ) : (
-                <IconCheckCircle size={18} color="#00FF66" />
+                <IconCheckCircle size={18} color={C.risk.safe} />
               )}
               <Text style={styles.verdictStatus}>
                 {verdict.decision === 'BLOCK'
@@ -303,7 +310,7 @@ export default function PgInitiateTransferScreen() {
             pressed && styles.btnPressed,
           ]}
           onPress={handleAnalyzeAndPay}
-          disabled={analyzing}
+          disabled={analyzing || !selectedBeneficiary}
           accessibilityRole="button"
         >
           {analyzing ? (
@@ -327,7 +334,7 @@ export default function PgInitiateTransferScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: C.gray.black,
   },
   topBar: {
     flexDirection: 'row',
@@ -340,14 +347,14 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: A.white(0.12),
   },
   topBarTitle: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 2,
@@ -355,16 +362,16 @@ const styles = StyleSheet.create({
   aiGuardPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: A.white(0.12),
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 8,
     gap: 6,
   },
   aiGuardText: {
-    color: '#AAAAAA',
+    color: C.gray[400],
     fontSize: 9,
     fontWeight: 'bold',
   },
@@ -374,15 +381,15 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   amountCard: {
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 22,
     padding: 22,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: A.white(0.12),
     marginBottom: 24,
   },
   amountLabel: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 9,
     fontWeight: 'bold',
     letterSpacing: 1.5,
@@ -394,18 +401,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   currencySymbol: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 36,
     fontWeight: 'bold',
     marginRight: 8,
   },
   amountInput: {
     flex: 1,
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 38,
     fontWeight: '800',
     padding: 0,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: PayGuardMonoFont,
   },
   quickChipsRow: {
     flexDirection: 'row',
@@ -413,38 +420,52 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    backgroundColor: '#121212',
+    backgroundColor: C.surface.elevated,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: A.white(0.08),
   },
   chipActive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
+    borderColor: C.gray.white,
   },
   chipText: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 11,
     fontWeight: '600',
   },
   chipTextActive: {
-    color: '#000000',
+    color: C.gray.black,
     fontWeight: 'bold',
   },
   sectionHeader: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 9,
     fontWeight: 'bold',
     letterSpacing: 1.5,
     marginBottom: 10,
   },
+  emptyBeneficiaries: {
+    backgroundColor: C.gray.card,
+    borderWidth: 1,
+    borderColor: A.white(0.08),
+    borderRadius: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  emptyBeneficiariesText: {
+    color: C.gray[500],
+    fontSize: 11,
+    textAlign: 'center' as const,
+  },
   beneficiaryList: {
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: A.white(0.08),
     overflow: 'hidden',
     marginBottom: 24,
   },
@@ -453,27 +474,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+    borderBottomColor: A.white(0.04),
     gap: 12,
   },
   beneficiaryItemActive: {
-    backgroundColor: '#141414',
+    backgroundColor: C.gray[950],
   },
   benAvatar: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#161616',
+    backgroundColor: C.gray[925],
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: A.white(0.15),
   },
   benAvatarActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
   },
   benAvatarText: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -481,35 +502,35 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   benName: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 14,
     fontWeight: '600',
   },
   benHandle: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 11,
     marginTop: 2,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: PayGuardMonoFont,
   },
   benTrustBadge: {
-    backgroundColor: '#161616',
+    backgroundColor: C.gray[925],
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: A.white(0.08),
   },
   benTrustText: {
-    color: '#AAAAAA',
+    color: C.gray[400],
     fontSize: 9,
     fontWeight: 'bold',
   },
   riskMeterCard: {
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 18,
     padding: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: A.white(0.08),
     marginBottom: 24,
   },
   riskMeterHeader: {
@@ -519,18 +540,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   riskMeterTitle: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 12,
   },
   riskScoreVal: {
     fontSize: 13,
     fontWeight: 'bold',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: PayGuardMonoFont,
   },
   riskBarBg: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: C.gray[900],
     overflow: 'hidden',
     marginBottom: 8,
   },
@@ -539,7 +560,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   riskMeterFootnote: {
-    color: '#555555',
+    color: C.gray[700],
     fontSize: 10,
   },
   verdictBox: {
@@ -555,30 +576,30 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   verdictSafe: {
-    backgroundColor: 'rgba(0, 255, 102, 0.06)',
-    borderColor: 'rgba(0, 255, 102, 0.3)',
+    backgroundColor: A.safe(0.06),
+    borderColor: A.safe(0.3),
   },
   verdictWarn: {
-    backgroundColor: 'rgba(255, 184, 0, 0.06)',
-    borderColor: 'rgba(255, 184, 0, 0.3)',
+    backgroundColor: A.warn(0.06),
+    borderColor: A.warn(0.3),
   },
   verdictBlock: {
-    backgroundColor: 'rgba(255, 42, 42, 0.06)',
-    borderColor: 'rgba(255, 42, 42, 0.3)',
+    backgroundColor: A.danger(0.06),
+    borderColor: A.danger(0.3),
   },
   verdictStatus: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 11,
     fontWeight: 'bold',
   },
   verdictReason: {
-    color: '#CCCCCC',
+    color: C.gray[300],
     fontSize: 11,
     lineHeight: 16,
   },
   payBtn: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
@@ -592,13 +613,13 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   payBtnText: {
-    color: '#000000',
+    color: C.gray.black,
     fontSize: 14,
     fontWeight: 'bold',
   },
   confirmBtn: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 12,
@@ -608,7 +629,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   confirmBtnText: {
-    color: '#000000',
+    color: C.gray.black,
     fontSize: 12,
     fontWeight: 'bold',
   },
