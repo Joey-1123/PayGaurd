@@ -25,22 +25,22 @@ SCENARIOS = [
     {
         "name": "John Carter",
         "recipient": {"bank_name": "Chase", "account_number": "1111-2222", "is_verified": True, "verification_level": "basic", "risk_score": 15.0, "risk_category": "low", "previous_transaction_count": 42},
-        "payment": {"recipient_id": None, "amount": 150.0, "currency": "USD", "description": "Salary transfer"},
+        "payment": {"recipient_id": None, "amount": 8000.0, "currency": "INR", "description": "Salary transfer"},
     },
     {
         "name": "Blue Lotus Events",
         "recipient": {"bank_name": "HDFC", "account_number": "3333-4444", "is_verified": False, "verification_level": "unverified", "risk_score": 50.0, "risk_category": "unknown", "previous_transaction_count": 0},
-        "payment": {"recipient_id": None, "amount": 2500.0, "currency": "USD", "description": "Booking deposit"},
+        "payment": {"recipient_id": None, "amount": 25000.0, "currency": "INR", "description": "Booking deposit"},
     },
     {
         "name": "Customer Care 2FA",
         "recipient": {"bank_name": "ICICI", "account_number": "5555-6666", "is_verified": False, "verification_level": "unverified", "risk_score": 82.0, "risk_category": "high", "previous_transaction_count": 1},
-        "payment": {"recipient_id": None, "amount": 750.0, "currency": "USD", "description": "Card verification fee"},
+        "payment": {"recipient_id": None, "amount": 1800.0, "currency": "INR", "description": "Card verification fee"},
     },
     {
         "name": "Invoice Desk",
         "recipient": {"bank_name": "BOB", "account_number": "7777-8888", "is_verified": False, "verification_level": "unknown", "risk_score": 95.0, "risk_category": "critical", "previous_transaction_count": 0},
-        "payment": {"recipient_id": None, "amount": 12000.0, "currency": "USD", "description": "Pending invoice settlement"},
+        "payment": {"recipient_id": None, "amount": 200000.0, "currency": "INR", "description": "Pending invoice settlement"},
     },
 ]
 
@@ -68,8 +68,17 @@ async def _seed() -> None:
                 recipient = Recipient(**row["recipient"], user_id=user.id, name=row["name"])
                 db.add(recipient)
                 await db.flush()
-            payment = await service.create_payment(db, user, PaymentCreate(**{**row["payment"], "recipient_id": recipient.id}))
-            payment = await service.analyze_and_route(db, payment, user)
+            amount = float(row["payment"]["amount"])
+            existing = await db.scalar(
+                select(Payment).where(
+                    Payment.user_id == user.id, Payment.recipient_id == recipient.id, Payment.amount == amount
+                )
+            )
+            if existing is not None:
+                payment = existing
+            else:
+                payment = await service.create_payment(db, user, PaymentCreate(**{**row["payment"], "recipient_id": recipient.id}))
+                payment = await service.analyze_and_route(db, payment, user)
             await db.refresh(payment)
             print(
                 f"[{row['name']}] score={payment.risk_score} level={payment.risk_level} "
