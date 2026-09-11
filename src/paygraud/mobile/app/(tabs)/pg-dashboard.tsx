@@ -1,7 +1,7 @@
 // Location: app/(tabs)/pg-dashboard.tsx
 // Rethought with UI-UX-Pro-Max, Anti-UI-Slop & Web Design Guidelines
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -18,13 +18,35 @@ import {
   IconWifi,
 } from '@/components/icons/PayGuardIcons';
 import { usePayGuardSession } from '@/store/payGuardSessionStore';
+import { usePayGuardLedgerData } from '@/hooks/usePayGuardLedger';
+import { PayGuardNetworkClient } from '@/services/PayGuardNetworkClient';
 import { formatPayGuardCurrency, timeAgo } from '@/utils/payGuardFormatters';
 import { MOCK_TRANSFERS, MOCK_TELEMETRY } from '@/utils/mockData';
+import type { PayGuardTelemetry } from '@/types/payGuardModels';
 
 export default function PgDashboardScreen() {
   const { activeIdentity } = usePayGuardSession();
+  const { transfers } = usePayGuardLedgerData();
+  const [telemetry, setTelemetry] = useState<PayGuardTelemetry | null>(null);
+
+  const loadTelemetry = useCallback(async () => {
+    try {
+      const data = await PayGuardNetworkClient.fetchTelemetry();
+      setTelemetry(data);
+    } catch {
+      // backend offline — keep MOCK_TELEMETRY fallback
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTelemetry();
+    const timer = setInterval(loadTelemetry, 30_000);
+    return () => clearInterval(timer);
+  }, [loadTelemetry]);
+
   const firstName = activeIdentity?.fullName?.split(' ')[0] ?? 'Alex';
-  const recentTransfers = MOCK_TRANSFERS.slice(0, 4);
+  const recentTransfers = (transfers.length ? transfers : MOCK_TRANSFERS).slice(0, 4);
+  const activeAlerts = telemetry?.activeAlerts ?? MOCK_TELEMETRY.activeAlerts;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -44,9 +66,9 @@ export default function PgDashboardScreen() {
             accessibilityRole="button"
           >
             <IconBell size={20} color="#FFFFFF" strokeWidth={2} />
-            {MOCK_TELEMETRY.activeAlerts > 0 && (
+            {activeAlerts > 0 && (
               <View style={styles.badgeDot}>
-                <Text style={styles.badgeText}>{MOCK_TELEMETRY.activeAlerts}</Text>
+                <Text style={styles.badgeText}>{activeAlerts}</Text>
               </View>
             )}
           </Pressable>

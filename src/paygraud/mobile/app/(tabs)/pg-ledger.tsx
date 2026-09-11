@@ -7,12 +7,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { IconCheck, IconX, IconFileDown, IconShieldAlert } from '@/components/icons/PayGuardIcons';
 import { MOCK_TRANSFERS } from '@/utils/mockData';
+import { usePayGuardLedgerData } from '@/hooks/usePayGuardLedger';
 import { formatPayGuardCurrency, timeAgo } from '@/utils/payGuardFormatters';
 
 export default function PgLedgerScreen() {
   const [filter, setFilter] = useState<'ALL' | 'CLEARED' | 'BLOCKED'>('ALL');
+  const { transfers, isFetching, refresh } = usePayGuardLedgerData();
 
-  const filteredTransfers = MOCK_TRANSFERS.filter((t) => {
+  const source = transfers.length ? transfers : MOCK_TRANSFERS;
+
+  const filteredTransfers = source.filter((t) => {
     if (filter === 'CLEARED') return t.transferStatus === 'COMPLETED';
     if (filter === 'BLOCKED') return t.transferStatus === 'BLOCKED_BY_SHIELD';
     return true;
