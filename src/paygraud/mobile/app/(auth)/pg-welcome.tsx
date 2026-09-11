@@ -20,6 +20,7 @@ import {
   IconArrowRight,
   IconZap,
 } from '@/components/icons/PayGuardIcons';
+import { PayGuardColors as C, PayGuardAlpha as A, PayGuardMonoFont } from '@/constants/payGuardTheme';
 
 export default function PgWelcomeScreen() {
   return (
@@ -48,7 +49,7 @@ export default function PgWelcomeScreen() {
         {/* HERO TYPOGRAPHY */}
         <View style={styles.heroSection}>
           <View style={styles.defenseBadge}>
-            <IconShieldCheck size={12} color="#00FF66" />
+            <IconShieldCheck size={12} color={C.risk.safe} />
             <Text style={styles.defenseBadgeText}>POST-QUANTUM PAYMENT SHIELD</Text>
           </View>
           <Text style={styles.heroTitleMain}>Stop fraud</Text>
@@ -65,7 +66,7 @@ export default function PgWelcomeScreen() {
             <View style={styles.cardInner}>
               <View style={styles.cardTop}>
                 <Text style={styles.cardType}>TITANIUM DEFENSE // ZERO-TRUST</Text>
-                <IconZap size={16} color="#FFFFFF" />
+                <IconZap size={16} color={C.gray.white} />
               </View>
 
               <View style={styles.cardMetricBox}>
@@ -92,7 +93,7 @@ export default function PgWelcomeScreen() {
         <View style={styles.featuresSection}>
           <View style={styles.featureItem}>
             <View style={styles.featureIconBox}>
-              <IconQrCode size={18} color="#FFFFFF" />
+              <IconQrCode size={18} color={C.gray.white} />
             </View>
             <View style={styles.featureContent}>
               <Text style={styles.featureTitle}>Deep QR Optical Scan</Text>
@@ -106,7 +107,7 @@ export default function PgWelcomeScreen() {
 
           <View style={styles.featureItem}>
             <View style={styles.featureIconBox}>
-              <IconCpu size={18} color="#FFFFFF" />
+              <IconCpu size={18} color={C.gray.white} />
             </View>
             <View style={styles.featureContent}>
               <Text style={styles.featureTitle}>Dual AI Consensus Engine</Text>
@@ -120,7 +121,7 @@ export default function PgWelcomeScreen() {
 
           <View style={styles.featureItem}>
             <View style={styles.featureIconBox}>
-              <IconShieldCheck size={18} color="#00FF66" />
+              <IconShieldCheck size={18} color={C.risk.safe} />
             </View>
             <View style={styles.featureContent}>
               <Text style={styles.featureTitle}>Automated Threat Quarantine</Text>
@@ -143,7 +144,7 @@ export default function PgWelcomeScreen() {
             accessibilityLabel="Authenticate identity"
           >
             <Text style={styles.primaryBtnText}>Launch Terminal</Text>
-            <IconArrowRight size={18} color="#000000" strokeWidth={2.5} />
+            <IconArrowRight size={18} color={C.gray.black} strokeWidth={2.5} />
           </Pressable>
 
           <Pressable
@@ -170,7 +171,7 @@ export default function PgWelcomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: C.gray.black,
   },
   scroll: {
     paddingHorizontal: 22,
@@ -192,25 +193,25 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: C.gray.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoSymbol: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 16,
     fontWeight: '900',
   },
   brandName: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 2,
   },
   brandSub: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 8,
     fontWeight: '800',
     letterSpacing: 1,
@@ -218,22 +219,22 @@ const styles = StyleSheet.create({
   statusChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: A.white(0.12),
     gap: 6,
   },
   statusPulse: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#00FF66',
+    backgroundColor: C.risk.safe,
   },
   statusText: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1,
@@ -245,9 +246,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(0, 255, 102, 0.08)',
+    backgroundColor: A.safe(0.08),
     borderWidth: 1,
-    borderColor: 'rgba(0, 255, 102, 0.25)',
+    borderColor: A.safe(0.25),
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
@@ -255,20 +256,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   defenseBadgeText: {
-    color: '#00FF66',
+    color: C.risk.safe,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1,
   },
   heroTitleMain: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 44,
     fontWeight: '900',
     letterSpacing: -1.5,
     lineHeight: 48,
   },
   heroTitleSub: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 44,
     fontWeight: '900',
     letterSpacing: -1.5,
@@ -276,7 +277,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   heroDescription: {
-    color: '#AAAAAA',
+    color: C.gray[400],
     fontSize: 14,
     lineHeight: 22,
     maxWidth: 340,
@@ -285,14 +286,14 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   cardGlowBorder: {
-    backgroundColor: '#000000',
+    backgroundColor: C.gray.black,
     borderRadius: 24,
     padding: 1,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: A.white(0.25),
   },
   cardInner: {
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 22,
     padding: 24,
     minHeight: 190,
@@ -304,31 +305,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardType: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 2,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: PayGuardMonoFont,
   },
   cardMetricBox: {
     marginVertical: 16,
   },
   metricLabel: {
-    color: '#777777',
+    color: C.gray[700],
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1.5,
     marginBottom: 4,
   },
   metricBig: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 32,
     fontWeight: '900',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: PayGuardMonoFont,
     letterSpacing: 1,
   },
   metricSub: {
-    color: '#00FF66',
+    color: C.risk.safe,
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1,
@@ -340,14 +341,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   cardHolderLabel: {
-    color: '#555555',
+    color: C.gray[700],
     fontSize: 8,
     fontWeight: '900',
     letterSpacing: 1,
     marginBottom: 2,
   },
   cardHolderName: {
-    color: '#DDDDDD',
+    color: C.gray[200],
     fontSize: 11,
     fontWeight: 'bold',
     letterSpacing: 1,
@@ -356,23 +357,23 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   trustScoreNum: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 16,
     fontWeight: '900',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: PayGuardMonoFont,
   },
   trustScoreLabel: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 8,
     fontWeight: '900',
     letterSpacing: 1,
   },
   featuresSection: {
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: A.white(0.08),
     marginBottom: 32,
   },
   featureItem: {
@@ -384,9 +385,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#161616',
+    backgroundColor: C.gray[925],
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: A.white(0.12),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -394,19 +395,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   featureTitle: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   featureDesc: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 12,
     lineHeight: 18,
   },
   featureDivider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: A.white(0.06),
     marginVertical: 16,
   },
   ctaContainer: {
@@ -416,7 +417,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
     paddingVertical: 18,
     borderRadius: 16,
     gap: 8,
@@ -425,7 +426,7 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   primaryBtnText: {
-    color: '#000000',
+    color: C.gray.black,
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 1,
@@ -433,19 +434,19 @@ const styles = StyleSheet.create({
   secondaryBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     paddingVertical: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderColor: A.white(0.16),
   },
   secondaryBtnText: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 13,
     fontWeight: 'bold',
   },
   trustDisclaimer: {
-    color: '#555555',
+    color: C.gray[700],
     fontSize: 10,
     textAlign: 'center',
     marginTop: 8,

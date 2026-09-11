@@ -24,7 +24,8 @@ import {
 } from '@/components/icons/PayGuardIcons';
 import { usePayGuardSession } from '@/store/payGuardSessionStore';
 import { usePayGuardAuth } from '@/hooks/usePayGuardSession';
-import { MOCK_IDENTITY } from '@/utils/mockData';
+import { DEMO_CREDENTIALS } from '@/constants/apiConfig';
+import { PayGuardColors as C, PayGuardAlpha as A } from '@/constants/payGuardTheme';
 
 type LoginFormData = {
   emailAddress: string;
@@ -63,9 +64,16 @@ export default function PgLoginScreen() {
     }
   };
 
-  const onDemoLogin = () => {
-    authenticateIdentity(MOCK_IDENTITY);
-    router.replace('/(tabs)/pg-dashboard');
+  const onDemoLogin = async () => {
+    setIsLoading(true);
+    setApiError(null);
+    try {
+      await login(DEMO_CREDENTIALS);
+    } catch {
+      setApiError('Demo login failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -122,7 +130,7 @@ export default function PgLoginScreen() {
                     <TextInput
                       style={styles.input}
                       placeholder="alex@payguard.ai"
-                      placeholderTextColor="#555555"
+                      placeholderTextColor={C.gray[700]}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoComplete="email"
@@ -167,7 +175,7 @@ export default function PgLoginScreen() {
                     <TextInput
                       style={styles.input}
                       placeholder="••••••••"
-                      placeholderTextColor="#555555"
+                      placeholderTextColor={C.gray[700]}
                       secureTextEntry={!showPassword}
                       autoComplete="password"
                       value={value}
@@ -182,9 +190,9 @@ export default function PgLoginScreen() {
                       accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? (
-                        <IconEyeOff size={18} color="#888888" />
+                        <IconEyeOff size={18} color={C.gray[500]} />
                       ) : (
-                        <IconEye size={18} color="#888888" />
+                        <IconEye size={18} color={C.gray[500]} />
                       )}
                     </Pressable>
                   </View>
@@ -207,11 +215,11 @@ export default function PgLoginScreen() {
               accessibilityRole="button"
             >
               {isLoading ? (
-                <ActivityIndicator color="#000000" size="small" />
+                <ActivityIndicator color={C.gray.black} size="small" />
               ) : (
                 <View style={styles.btnContentRow}>
                   <Text style={styles.primaryBtnText}>Authenticate</Text>
-                  <IconArrowRight size={16} color="#000000" strokeWidth={2.4} />
+                  <IconArrowRight size={16} color={C.gray.black} strokeWidth={2.4} />
                 </View>
               )}
             </Pressable>
@@ -261,7 +269,7 @@ export default function PgLoginScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: C.gray.black,
   },
   scroll: {
     flexGrow: 1,
@@ -278,25 +286,25 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: C.gray.white,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   logoSymbol: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 26,
   },
   brandTitle: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 24,
     fontWeight: '900',
     letterSpacing: 4,
   },
   brandSub: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 9,
     fontWeight: 'bold',
     letterSpacing: 1.5,
@@ -305,33 +313,33 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: A.white(0.12),
   },
   cardTitle: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   cardSubtitle: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 12,
     marginBottom: 20,
   },
   errorBanner: {
-    backgroundColor: 'rgba(255, 42, 42, 0.1)',
+    backgroundColor: A.danger(0.1),
     borderWidth: 1,
-    borderColor: '#FF2A2A',
+    borderColor: C.risk.critical,
     borderRadius: 12,
     padding: 10,
     marginBottom: 16,
   },
   errorBannerText: {
-    color: '#FF2A2A',
+    color: C.risk.critical,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -339,7 +347,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 9,
     fontWeight: 'bold',
     letterSpacing: 1,
@@ -352,26 +360,26 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   forgotLink: {
-    color: '#AAAAAA',
+    color: C.gray[400],
     fontSize: 10,
     fontWeight: 'bold',
   },
   inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#121212',
+    backgroundColor: C.surface.elevated,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: A.white(0.1),
     paddingHorizontal: 14,
     height: 50,
   },
   inputError: {
-    borderColor: '#FF2A2A',
+    borderColor: C.risk.critical,
   },
   input: {
     flex: 1,
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 14,
   },
   eyeBtn: {
@@ -380,12 +388,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   errorText: {
-    color: '#FF2A2A',
+    color: C.risk.critical,
     fontSize: 10,
     marginTop: 4,
   },
   primaryBtn: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
     borderRadius: 14,
     height: 50,
     alignItems: 'center',
@@ -401,7 +409,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   primaryBtnText: {
-    color: '#000000',
+    color: C.gray.black,
     fontSize: 14,
     fontWeight: 'bold',
     letterSpacing: 0.5,
@@ -415,29 +423,29 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: A.white(0.08),
   },
   dividerText: {
-    color: '#555555',
+    color: C.gray[700],
     fontSize: 10,
   },
   demoBtn: {
-    backgroundColor: '#161616',
+    backgroundColor: C.gray[925],
     borderRadius: 14,
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: A.white(0.2),
   },
   demoBtnText: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1,
   },
   demoNote: {
-    color: '#555555',
+    color: C.gray[700],
     fontSize: 10,
     textAlign: 'center',
     marginTop: 8,
@@ -448,11 +456,11 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   registerText: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 12,
   },
   registerLink: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -460,7 +468,7 @@ const styles = StyleSheet.create({
     marginTop: 28,
   },
   securityText: {
-    color: '#444444',
+    color: C.gray[750],
     fontSize: 9,
     letterSpacing: 1,
   },

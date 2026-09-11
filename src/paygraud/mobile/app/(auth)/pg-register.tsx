@@ -24,9 +24,9 @@ import {
   IconEye,
   IconEyeOff,
 } from '@/components/icons/PayGuardIcons';
-import { usePayGuardSession } from '@/store/payGuardSessionStore';
 import { usePayGuardAuth } from '@/hooks/usePayGuardSession';
-import { MOCK_IDENTITY } from '@/utils/mockData';
+import { DEMO_CREDENTIALS } from '@/constants/apiConfig';
+import { PayGuardColors as C, PayGuardAlpha as A } from '@/constants/payGuardTheme';
 
 type RegisterFormData = {
   fullName: string;
@@ -39,8 +39,7 @@ export default function PgRegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const { authenticateIdentity } = usePayGuardSession();
-  const { register, error: authError } = usePayGuardAuth();
+  const { login, register, error: authError } = usePayGuardAuth();
 
   useEffect(() => {
     if (authError) setApiError(authError);
@@ -74,9 +73,18 @@ export default function PgRegisterScreen() {
     }
   };
 
-  const onDemoRegister = () => {
-    authenticateIdentity(MOCK_IDENTITY);
-    router.replace('/(tabs)/pg-dashboard');
+  // "Demo" onboarding signs into the shared demo account (no mock identity —
+  // the session must be a real backend session so API calls are authenticated).
+  const onDemoRegister = async () => {
+    setIsLoading(true);
+    setApiError(null);
+    try {
+      await login(DEMO_CREDENTIALS);
+    } catch {
+      setApiError('Demo login failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -93,10 +101,10 @@ export default function PgRegisterScreen() {
             accessibilityLabel="Go back"
             accessibilityRole="button"
           >
-            <IconArrowLeft size={20} color="#FFFFFF" />
+            <IconArrowLeft size={20} color={C.gray.white} />
           </Pressable>
           <View style={styles.securityPill}>
-            <IconShieldCheck size={12} color="#00FF66" />
+            <IconShieldCheck size={12} color={C.risk.safe} />
             <Text style={styles.securityPillText}>ZERO-KNOWLEDGE</Text>
           </View>
         </View>
@@ -137,7 +145,7 @@ export default function PgRegisterScreen() {
                     <TextInput
                       style={styles.input}
                       placeholder="Alex Chen"
-                      placeholderTextColor="#555555"
+                      placeholderTextColor={C.gray[700]}
                       autoCapitalize="words"
                       value={value}
                       onChangeText={onChange}
@@ -174,7 +182,7 @@ export default function PgRegisterScreen() {
                     <TextInput
                       style={styles.input}
                       placeholder="alex@payguard.ai"
-                      placeholderTextColor="#555555"
+                      placeholderTextColor={C.gray[700]}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoComplete="email"
@@ -215,7 +223,7 @@ export default function PgRegisterScreen() {
                     <TextInput
                       style={styles.input}
                       placeholder="••••••••••••"
-                      placeholderTextColor="#555555"
+                      placeholderTextColor={C.gray[700]}
                       secureTextEntry={!showPassword}
                       autoComplete="password-new"
                       value={value}
@@ -229,9 +237,9 @@ export default function PgRegisterScreen() {
                       accessibilityRole="button"
                     >
                       {showPassword ? (
-                        <IconEyeOff size={18} color="#888888" />
+                        <IconEyeOff size={18} color={C.gray[500]} />
                       ) : (
-                        <IconEye size={18} color="#888888" />
+                        <IconEye size={18} color={C.gray[500]} />
                       )}
                     </Pressable>
                   </View>
@@ -301,7 +309,7 @@ export default function PgRegisterScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: C.gray.black,
   },
   topBar: {
     flexDirection: 'row',
@@ -314,11 +322,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: A.white(0.12),
   },
   btnPressed: {
     opacity: 0.75,
@@ -326,16 +334,16 @@ const styles = StyleSheet.create({
   securityPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 255, 102, 0.08)',
+    backgroundColor: A.safe(0.08),
     borderWidth: 1,
-    borderColor: 'rgba(0, 255, 102, 0.25)',
+    borderColor: A.safe(0.25),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     gap: 6,
   },
   securityPillText: {
-    color: '#00FF66',
+    color: C.risk.safe,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1,
@@ -353,36 +361,36 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   headerTitle: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 28,
     fontWeight: '900',
     letterSpacing: -0.5,
     marginBottom: 6,
   },
   headerSubtitle: {
-    color: '#888888',
+    color: C.gray[500],
     fontSize: 13,
     lineHeight: 18,
   },
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: C.gray.card,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: A.white(0.12),
   },
   errorBanner: {
-    backgroundColor: 'rgba(255, 42, 42, 0.1)',
+    backgroundColor: A.danger(0.1),
     borderWidth: 1,
-    borderColor: '#FF2A2A',
+    borderColor: C.risk.critical,
     borderRadius: 12,
     padding: 10,
     marginBottom: 16,
   },
   errorBannerText: {
-    color: '#FF2A2A',
+    color: C.risk.critical,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -390,7 +398,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 9,
     fontWeight: 'bold',
     letterSpacing: 1,
@@ -399,19 +407,19 @@ const styles = StyleSheet.create({
   inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#121212',
+    backgroundColor: C.surface.elevated,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: A.white(0.1),
     paddingHorizontal: 14,
     height: 50,
   },
   inputError: {
-    borderColor: '#FF2A2A',
+    borderColor: C.risk.critical,
   },
   input: {
     flex: 1,
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 14,
   },
   eyeBtn: {
@@ -420,12 +428,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   errorText: {
-    color: '#FF2A2A',
+    color: C.risk.critical,
     fontSize: 10,
     marginTop: 4,
   },
   primaryBtn: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.gray.white,
     borderRadius: 14,
     height: 50,
     alignItems: 'center',
@@ -438,7 +446,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   primaryBtnText: {
-    color: '#000000',
+    color: C.gray.black,
     fontSize: 14,
     fontWeight: 'bold',
     letterSpacing: 0.5,
@@ -452,29 +460,29 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: A.white(0.08),
   },
   dividerText: {
-    color: '#555555',
+    color: C.gray[700],
     fontSize: 10,
   },
   demoBtn: {
-    backgroundColor: '#161616',
+    backgroundColor: C.gray[925],
     borderRadius: 14,
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: A.white(0.2),
   },
   demoBtnText: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1,
   },
   demoNote: {
-    color: '#555555',
+    color: C.gray[700],
     fontSize: 10,
     textAlign: 'center',
     marginTop: 8,
@@ -485,11 +493,11 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   loginText: {
-    color: '#666666',
+    color: C.gray[600],
     fontSize: 12,
   },
   loginLink: {
-    color: '#FFFFFF',
+    color: C.gray.white,
     fontSize: 12,
     fontWeight: 'bold',
   },

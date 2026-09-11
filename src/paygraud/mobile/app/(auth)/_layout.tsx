@@ -2,13 +2,14 @@
 // PayGuard Auth Stack — welcome, login & register screens (no tab bar)
 
 import { Stack } from 'expo-router';
+import { PayGuardColors as C } from '@/constants/payGuardTheme';
 
 export default function PayGuardAuthStack() {
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#000000' },
+        contentStyle: { backgroundColor: C.gray.black },
         animation: 'slide_from_right',
       }}
     >
