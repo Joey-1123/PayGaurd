@@ -122,6 +122,7 @@
 | Audit log completeness | Backend dev | Every action audited |
 | UI polish (empty states, loading, errors) | All | Demo-grade visuals |
 | Seed + smoke-test all 4 scenarios | All | Scripted demo works |
+| ngrok tunnel smoke test (phone → backend) | Mobile + backend | Login + payment from physical device works |
 | Rehearse demo flow + timing | Presenter | 5-7 min script |
 | Prepare backup plan (offline fallback) | All | Local-model-only mode works if APIs fail |
 
@@ -163,6 +164,7 @@
 | Time overrun on mobile setup | Medium | Medium | Mobile mirrors web; web can demo alone |
 | DB seeding conflicts | Low | Medium | Idempotent seed script (`get-or-create`) |
 | Demo data shows wrong scenario behavior | Low | High | Seed distinct recipients per scenario; freeze their risk profile |
+| ngrok tunnel down / URL changed at demo time | Medium | Medium | Bring 2 tunnels + static domain; store ngrok URL in `.env`, test 10 min before |
 
 ## 9. Demo Script (5-7 min)
 
@@ -186,3 +188,5 @@
 - [ ] Build PaymentSimulator
 - [ ] Write seed script and run it
 - [ ] Scaffold Next.js + Expo apps
+- [ ] Set up ngrok: tunnel backend (`ngrok http 8000`), add `https://*.ngrok-free.app` to CORS
+- [ ] Store ngrok URL in mobile `.env` and smoke-test from a physical phone
