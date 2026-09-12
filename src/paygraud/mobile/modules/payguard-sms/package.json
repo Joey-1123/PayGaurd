@@ -1,0 +1,5 @@
+{
+  "name": "payguard-sms",
+  "version": "1.0.0",
+  "main": "index.ts"
+}

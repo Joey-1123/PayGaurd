@@ -1,0 +1,17 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'expo-module-gradle-plugin'
+
+group = 'expo.modules.payguard.sms'
+version = '1.0.0'
+
+android {
+  // The expo-module-gradle-plugin supplies the compile/target SDK versions.
+  namespace = 'expo.modules.payguard.sms'
+  defaultConfig {
+    minSdkVersion 24
+    // needed so the module compiles against the host app's compileSdk
+    compileSdkVersion = 35
+    targetSdkVersion = 35
+  }
+}
