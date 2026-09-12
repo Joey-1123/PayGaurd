@@ -1,4 +1,5 @@
 import json
+import re
 import time
 
 import httpx
@@ -11,6 +12,12 @@ impersonation, urgency-based social engineering, and unusual recipients. Reply w
 {"risk_score": <0-100>, "confidence": <0-1>, "verdict": "safe|suspicious|dangerous", "flags": ["..."], "explanation": "one sentence"}
 
 Payment: {payload}"""
+
+
+def _extract_json(content: str) -> str:
+    """Pull the first JSON object out of a model reply (handles code fences/prose)."""
+    match = re.search(r"\{.*\}", content, re.DOTALL)
+    return match.group(0) if match else content
 
 
 class OpenAICompatibleModelAI(BaseModelAI):
@@ -38,11 +45,11 @@ class OpenAICompatibleModelAI(BaseModelAI):
         if not api_key:
             raise ModelUnavailableError(f"{self.name_prefix} API key not configured")
         start = time.perf_counter()
-        headers = {"Authorization": f"Bearer {self._settings.openai_api_key}"}
+        headers = {"Authorization": f"Bearer {getattr(self._settings, self.api_key_setting)}"}
         body: dict = {
             "model": getattr(self._settings, self.model_setting),
             "messages": [
-                {"role": "system", "content": _SYSTEM.format(payload=json.dumps(features.to_prompt()))},
+                {"role": "system", "content": _SYSTEM.replace("{payload}", json.dumps(features.to_prompt()))},
                 {"role": "user", "content": "Return the JSON classification."},
             ],
             "temperature": 0.1,
@@ -56,8 +63,8 @@ class OpenAICompatibleModelAI(BaseModelAI):
             resp.raise_for_status()
             content = resp.json()["choices"][0]["message"]["content"]
         try:
-            data = json.loads(content)
-        except json.JSONDecodeError as exc:
+            data = json.loads(_extract_json(content))
+        except (json.JSONDecodeError, KeyError, ValueError) as exc:
             raise ModelUnavailableError(f"{self.name_prefix} returned non-JSON") from exc
         return ModelResult(
             model_name=self._model_name,
