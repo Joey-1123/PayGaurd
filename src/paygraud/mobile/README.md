@@ -1,180 +1,105 @@
-# PayGuard 🛡️
+<div align="center">
 
-**Agentic Guardian for Real-Time Payment Scam Interception**
+# PayGuard Mobile
 
-[![Mobile](https://img.shields.io/badge/Mobile-Expo%20SDK%2057-blue.svg)](#) [![React Native](https://img.shields.io/badge/React%20Native-0.86.3-61DAFB.svg)](#) [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6.svg)](#) [![License](https://img.shields.io/badge/License-MIT-green.svg)](#)
+### AI-shielded payments in your pocket
 
-## 📖 Overview
+[![Expo](https://img.shields.io/badge/Expo%20SDK-57-000020?logo=expo&logoColor=white)](https://expo.dev/)
+[![React Native](https://img.shields.io/badge/React%20Native-0.86-61DAFB?logo=react&logoColor=white)](https://reactnative.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License](https://img.shields.io/badge/License-MIT-green)](#license)
 
-The PayGuard mobile app is built with **Expo SDK 57**, **React Native 0.86.3**, and **TypeScript 6**. It serves as the primary user interface for initiating secure transfers, managing beneficiaries, and receiving real-time threat intelligence alerts.
+</div>
 
-## ✨ Features
+---
 
-- **Real-Time Threat Alerts:** Live WebSocket integration (`PayGuardThreatStream`) for instant scam interception.
-- **AI-Powered Transfer Risk Analysis:** Evaluates transactions dynamically before authorization.
-- **Biometric Authentication:** Secure local authentication via `PayGuardBioAuthEngine` (powered by `expo-local-authentication`).
-- **SMS Interception & Scoring:** Dedicated `pg-signal-capture` screen for scanning and scoring SMS threats.
-- **Payment Ledger & Beneficiary Management:** Comprehensive transaction history and recipient controls.
+## What is this?
 
-## 🏗️ Architecture
+PayGuard Mobile is the user-facing client of the PayGuard platform. It initiates transfers, scans **SMS and QR/UPI signals** through the backend AI engine, enforces **human-in-the-loop consent** on held payments, and surfaces **real-time threat alerts** over WebSocket. Built with Expo SDK 57 / React Native 0.86 and Zustand.
 
-- **Framework:** Expo SDK 57 & React Native 0.86.3.
-- **Routing:** `expo-router` for file-based navigation.
-- **State Management:** Zustand 5. Stores include:
-  - `payGuardSessionStore`: User session and authentication state.
-  - `payGuardLedgerStore`: Transaction history and active transfers.
-  - `threatIntelligenceStore`: Real-time threat data and alerts.
-- **Networking:** Axios HTTP client wrapper (`PayGuardNetworkClient`) for all backend communications.
-- **Type Safety:** Contracts mapped in `types/payGuardModels.ts`, perfectly aligned with FastAPI backend schemas.
-- **Theming:** Centralized design tokens located in `constants/payGuardTheme.ts`.
+> [!NOTE]
+> This is a hackathon build — the payment gateway is simulated, so no real money moves.
 
-## ✅ Prerequisites
+## Features
 
-- Node.js (v18+)
-- npm or yarn
-- Expo CLI (`npm install -g expo-cli`)
-- iOS Simulator (Mac) or Android Emulator (Windows/Mac)
-- **ngrok** — required for physical device testing (routes device traffic to your local backend)
+- **QR / UPI scam scanner** (`Threat Center`) — scanner payloads run through the real signal pipeline; rejected payees become **blacklisted critical recipients**, and a payment attempt on a fraudster is **blocked by the saga**.
+- **Signal Lab (SMS)** — clipboard auto-ingest (Expo Go) plus a **native Android SMS receiver** (`modules/payguard-sms`) for dev builds; phishing links and spoofed senders are scored live.
+- **Human-in-the-loop** — held transfers show a consent card (Approve / Block) on the transfer detail and a `PENDING` filter in the ledger.
+- **Real-time alerts** — WebSocket stream updates the ledger and fires local device notifications for status changes.
+- **Biometric auth** — Face ID / fingerprint with fallback credentials.
 
-## 🚀 Installation
-
-1. Navigate to the mobile directory:
-   ```bash
-   cd src/paygraud/mobile
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-## 🏃 Running
-
-Start the Expo development server:
-
-```bash
-# Run for Android
-npm run android
-
-# Run for iOS
-npm run ios
-
-# Run for Web
-npm run web
-```
-
-## 🌐 Connecting to the Backend (ngrok)
-
-Physical devices **cannot reach `localhost`** — ngrok tunnels the FastAPI backend to a public HTTPS URL that both your phone and the WebSocket stream can access.
-
-### Emulator / Simulator (no ngrok needed)
-
-The app defaults to `http://localhost:8001` which works out-of-the-box with most emulators:
-
-```ts
-// constants/apiConfig.ts — default (no env var set)
-const DEFAULT_BACKEND_URL = 'http://localhost:8001';
-```
-
-### Physical Device (ngrok required)
-
-**1. Start ngrok on your backend port:**
-```powershell
-ngrok http 8000
-# or with a static free domain:
-ngrok http --domain=your-domain.ngrok-free.dev 8000
-```
-
-**2. Copy the forwarding URL** (e.g. `https://relative-reopen-subduing.ngrok-free.dev`)
-
-**3. Set the env var before starting Expo:**
-```powershell
-# PowerShell
-$env:EXPO_PUBLIC_NGROK_URL="https://your-domain.ngrok-free.dev"
-npm run android   # or ios / web
-```
-
-The app derives both REST and WebSocket URLs from a single env var:
-```ts
-// REST  → https://your-domain.ngrok-free.dev/api/v1
-export const API_BASE_URL = `${NGROK_BACKEND_URL}/api/v1`;
-
-// WS    → wss://your-domain.ngrok-free.dev/api/v1/ws
-export const WS_STREAM_URL = `${NGROK_BACKEND_URL.replace(/^http/, 'ws')}/api/v1/ws`;
-```
-
-> **Why ngrok and not a LAN IP?** ngrok provides HTTPS (required for biometric auth APIs on iOS/Android) and avoids CORS/network policy issues on real devices. The backend CORS config already whitelists `*.ngrok-free.app` and `*.ngrok-free.dev`.
-
-### Demo Credentials
-
-A shared demo account is baked into `constants/apiConfig.ts` for hackathon demo runs:
-```ts
-export const DEMO_CREDENTIALS = {
-  emailAddress: 'demo@payguard.io',
-  password: 'Payguard@123',
-};
-```
-
-
-## 📂 Project Structure
+## Screens & structure
 
 ```text
-mobile/
-├── app/                        # expo-router file-based routes
-│   ├── (auth)/                 # Authentication group
-│   │   ├── pg-welcome.tsx      # Onboarding / splash
-│   │   ├── pg-login.tsx        # Login (biometric + credentials)
-│   │   └── pg-register.tsx     # New user registration
-│   ├── (tabs)/                 # Bottom-tab navigation
-│   │   ├── pg-dashboard.tsx    # Telemetry & risk overview
-│   │   ├── pg-ledger.tsx       # Transaction history
-│   │   ├── pg-threat-center.tsx# Live alerts & threat feed
-│   │   └── pg-preferences.tsx  # Settings & beneficiaries
-│   └── secure-transfer/        # Transfer flows
-│       ├── pg-initiate.tsx     # Start transfer + AI analysis
-│       ├── [transactionId].tsx  # Transfer detail & status
-│       └── pg-signal-capture.tsx # SMS scanner & scorer
-├── assets/                     # Icons, splash, images
-├── constants/
-│   ├── apiConfig.ts            # EXPO_PUBLIC_NGROK_URL → API_BASE_URL + WS_STREAM_URL
-│   └── payGuardTheme.ts        # Brand colors & design tokens
-├── services/
-│   ├── PayGuardNetworkClient.ts # Axios HTTP client (auth, payments, alerts, signals)
-│   ├── PayGuardBioAuthEngine.ts # Biometric auth (expo-local-authentication)
-│   └── PayGuardThreatStream.ts  # WebSocket client (real-time alerts via ngrok tunnel)
-├── store/
-│   ├── payGuardSessionStore.ts  # Auth identity & JWT
-│   ├── payGuardLedgerStore.ts   # Payment ledger
-│   └── threatIntelligenceStore.ts # Live threat state
-├── types/
-│   └── payGuardModels.ts       # TypeScript contracts aligned with FastAPI schemas
-└── scripts/                    # Expo utility scripts
+app/                         # expo-router file-based routes
+├── (auth)/                  # pg-login, pg-register, pg-welcome
+├── (tabs)/                  # pg-dashboard, pg-ledger, pg-threat-center, pg-preferences
+├── money/                   # pg-add, pg-receive
+└── secure-transfer/         # pg-initiate, [transactionId], pg-signal-capture, pg-case-study
+modules/payguard-sms/        # native Android SMS bridge (dev builds only)
+services/                    # PayGuardNetworkClient, PayGuardThreatStream, payGuardLocalNotifier
+store/                       # Zustand — payGuardSessionStore, payGuardLedgerStore, threatIntelligenceStore
+types/payGuardModels.ts      # TS contracts aligned with the FastAPI schemas
+constants/payGuardTheme.ts   # brand design tokens
+hooks/usePayGuardThreatStream.ts   # WS → ledger + notifications lifecycle
 ```
 
-> **`@expo/ngrok`** is listed as a dev dependency — Expo uses it internally for `expo start --tunnel` mode, giving you an alternative to standalone ngrok CLI.
+## Getting started
 
+Prerequisites: **Node.js 20+**, **npm**, and the **Expo Go** app (or a dev build for the SMS bridge).
 
-## 📱 Screen Reference
+```powershell
+cd src\paygraud\mobile
+npm install
+npx expo start        # scan the QR with Expo Go
+```
 
-### Auth Group `(auth)`
-- `pg-welcome`: Entry screen and onboarding.
-- `pg-login`: User login via biometrics or fallback credentials.
-- `pg-register`: New user registration.
+Run directly against a specific platform: `npm run android` · `npm run ios` · `npm run web`.
 
-### Tabs `(tabs)`
-- `pg-dashboard`: Quick overview of balances and recent activity.
-- `pg-ledger`: Detailed transaction history.
-- `pg-threat-center`: Threat intelligence and active alerts.
-- `pg-preferences`: Settings, theme, and beneficiary management.
+### Connecting to the backend
 
-### Secure Transfer `(secure-transfer)`
-- `pg-initiate`: Start a new transfer with pre-authorization checks.
-- `[transactionId]`: Transaction detail and status tracking.
-- `pg-signal-capture`: SMS interception scanner.
+The app resolves both REST and WebSocket URLs from one source (`constants/apiConfig.ts`):
 
-## 🤝 Contributing
+- **Default** (emulator-friendly): `http://localhost:8001`.
+- **Physical device**: a device can't reach `localhost`, so point the app at a public tunnel:
 
-Contributions must adhere to the rules in `AGENTS.md`. Work for this package should land exclusively on the `mobile` branch. Keep commits focused (<100 LOC).
+```powershell
+ngrok http 8001
+$env:EXPO_PUBLIC_NGROK_URL="https://your-tunnel.ngrok-free.app"
+npx expo start
+```
 
-## 📄 License
+The backend CORS policy already allows `https://*.ngrok-free.app`; HTTPS is also required for the biometric APIs.
 
-This project is licensed under the MIT License. See the [LICENSE](../../LICENSE) file for details.
+### Demo account
+
+`demo@payguard.io` / `Payguard@123` — used by the login/register demo buttons (single source of truth in `constants/apiConfig.ts`).
+
+## Live case study
+
+Open **`/secure-transfer/pg-case-study`** from Signal Lab or Threat Center for a guided replay of two attacks:
+
+1. **Phishing SMS** — the spoofed `VM-HDFCBK` message, copied to the clipboard, then analyzed in Signal Lab.
+2. **Fake UPI invoice QR** — the `Invoice Desk LLC` payload scanned in Threat Center → rejected, recipient blacklisted, attempt blocked.
+
+## Real SMS interception (Tier B — dev build)
+
+Expo Go cannot load native modules. To capture actual incoming SMS on Android, use a dev build:
+
+```powershell
+npx expo prebuild --platform android
+npx expo run:android
+```
+
+Then open Signal Lab and send an SMS — the receiver triggers `onSmsReceived` and the screen auto-analyzes it. `expo-dev-client` is already a dependency.
+
+> [!CAUTION]
+> `READ_SMS` is a restricted Play Store permission. The module is PoC/demo scope only.
+
+## Contributing
+
+See the repo-level [AGENTS.md](../../../AGENTS.md) — work for this directory lands on the `mobile` branch, keep commits **≤100 LOC**, and run `npx tsc --noEmit` in this package before submitting.
+
+## License
+
+[MIT](../../../LICENSE)
