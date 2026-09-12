@@ -77,6 +77,16 @@ export async function analyzePayment(paymentId: string): Promise<Payment> {
   return data;
 }
 
+export async function confirmPayment(paymentId: string): Promise<Payment> {
+  const { data } = await api.post<Payment>(`/payments/${paymentId}/confirm`);
+  return data;
+}
+
+export async function blockPayment(paymentId: string): Promise<Payment> {
+  const { data } = await api.post<Payment>(`/payments/${paymentId}/block`);
+  return data;
+}
+
 export async function fetchAlerts(): Promise<Alert[]> {
   const { data } = await api.get<Alert[]>("/alerts?limit=10");
   return data;
