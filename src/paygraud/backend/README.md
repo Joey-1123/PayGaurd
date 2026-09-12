@@ -1,132 +1,125 @@
 <div align="center">
-  <h1>🛡️ PayGuard Backend</h1>
-  <p><strong>Agentic Guardian for Real-Time Payment Scam Interception</strong></p>
-  <p>
-    <img src="https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=FastAPI&logoColor=white" alt="FastAPI" />
-    <img src="https://img.shields.io/badge/Python-3.13-3776AB?style=flat&logo=python&logoColor=white" alt="Python" />
-    <img src="https://img.shields.io/badge/SQLAlchemy-2.0-red?style=flat&logo=sqlalchemy&logoColor=white" alt="SQLAlchemy" />
-    <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat&logo=postgresql&logoColor=white" alt="PostgreSQL" />
-  </p>
+
+# PayGuard Backend
+
+### Real-time payment scam interception engine
+
+[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-red?logo=sqlalchemy&logoColor=white)](https://www.sqlalchemy.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Tests](https://img.shields.io/badge/tests-34%20passing-brightgreen)](#testing)
+
 </div>
 
 ---
 
-## 📖 Overview
+## What is this?
 
-The PayGuard Backend is the core intelligence engine that processes real-time payments, runs them through a multi-model AI risk analysis pipeline (LangGraph), and orchestrates the payment saga. It leverages FastAPI for high-performance async APIs, SQLAlchemy 2.0 with PostgreSQL 16 for robust data persistence, and a multi-tiered AI approach (Local models → Cloud models → Aggregator) to intercept scams before money moves.
+The PayGuard backend is the decision engine of the platform. Every payment is scored by a **multi-model AI ensemble** orchestrated in a LangGraph graph, and the resulting risk decision is enforced through a **payment saga state machine** before any (simulated) money moves. It also ingests **SMS and QR signals** from the mobile client — phishing links, spoofed senders and UPI fraud payloads become permanent risk records.
 
-## ✨ Features
+## Features
 
-- **Multi-Model AI Orchestration:** Utilizes OpenAI, Anthropic, Groq, OpenRouter, and local Ollama models with a rule engine fallback.
-- **LangGraph Risk Pipeline:** `local_model` node → `cloud_models` node → `aggregator` node (short-circuits on LOW risk scores).
-- **Payment Saga State Machine:** Robust state management (`pending` → `analyzing` → `awaiting_confirmation` → `confirmed` → `completed` / `blocked` / `failed`).
-- **Dynamic Risk Categorization:**
-  - 🟢 **LOW**: Auto-approve
-  - 🟡 **MEDIUM**: Hold for confirmation
-  - 🟠 **HIGH**: Verification required
-  - 🔴 **CRITICAL**: Auto-block
-- **Real-Time WebSockets:** Push alerts and payment status updates instantly to clients.
-- **Asynchronous Processing:** Built-in support for Celery task queuing (toggleable).
+- **Multi-model AI orchestration** — OpenAI, Anthropic, Groq, OpenRouter and a local Ollama model behind a weighted aggregator, with a rule-engine fallback when no network model answers.
+- **LangGraph risk pipeline** — `local_model → cloud_models → aggregator` with early exit on low risk; traces available per payment.
+- **Payment saga state machine** — `pending → analyzing → awaiting_confirmation → confirmed → completed`, with `blocked / canceled / failed` as compensations:
+  - 🟢 **LOW** → auto-approve
+  - 🟡 **MEDIUM** → hold for human confirmation
+  - 🟠 **HIGH** → verification required
+  - 🔴 **CRITICAL** → auto-block *before* `authorize` is called
+- **Signal ingestion** — `POST /signals` accepts SMS / QR payloads; UPI strings are parsed for `pa`/`pn`/`am`, scored, and rejected payees can be persisted as blacklisted recipients.
+- **Real-time WebSockets** — alert + payment-status frames pushed to authenticated clients.
+- **Async-first** — SQLAlchemy 2.0 + `asyncpg` throughout; Celery wiring available (defaults to inline analysis).
 
-## 🏗️ Architecture
+## Architecture
 
-The backend follows a layered monolith architecture:
-- **API Layer (`/api/v1`)**: Thin routers handling HTTP/WebSocket requests.
-- **Service Layer**: Business logic, orchestrating the payment saga and risk reporting.
-- **Agent Layer (`agents/`)**: Multi-model orchestration using LangGraph.
-- **Data Layer (`models/`)**: Async SQLAlchemy 2.0 models mapped to PostgreSQL.
-
-*Note: The payment gateway is simulated (`PaymentSimulator`) - no real money rails are used in this hackathon build.*
-
-## 📋 Prerequisites
-
-- **Python 3.13**
-- **uv** (Package Manager)
-- **Docker & Docker Compose** (for PostgreSQL 16 & Redis 7)
-
-## 🛠️ Installation
-
-1. Clone the repository and navigate to the backend directory:
-   ```bash
-   cd src/paygraud/backend
-   ```
-2. Sync dependencies and setup the virtual environment using `uv`:
-   ```bash
-   uv sync --group dev
-   ```
-
-## 🚀 Running
-
-1. **Start Infrastructure (Postgres & Redis):**
-   ```bash
-   docker-compose up -d
-   ```
-   *(Ensure Postgres is running on port 5433 and Redis on 6379)*
-
-2. **Run Migrations (requires live Postgres):**
-   ```bash
-   uv run alembic upgrade head
-   ```
-
-3. **Start the FastAPI Server:**
-   ```bash
-   uv run uvicorn app.main:app --reload
-   ```
-
-## ⚙️ Environment Variables
-
-Create a `.env` file in the `backend` root. Key configurations:
-
-- `DATABASE_URL`: Connection string for Postgres (e.g., `postgresql+asyncpg://user:pass@localhost:5433/db`)
-- `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`: API keys for cloud models.
-- `ASYNC_ANALYSIS`: Defaults to `false` (inline). Set to `true` to use Celery workers.
-
-## 📂 Project Structure
+Layered monolith — thin routers, business services, agent/graph layer, data layer:
 
 ```text
 src/paygraud/backend/
 ├── app/
-│   ├── api/v1/        # Routers: auth, payments, recipients, alerts, gateway, signals, websockets, debug
-│   ├── services/      # Business logic, saga, risk reporting
-│   ├── agents/        # LangGraph orchestrator
-│   ├── models_ai/     # Model integrations (OpenAI, Anthropic, Ollama, routers)
-│   ├── models/        # SQLAlchemy 2.0 ORM models
-│   ├── schemas/       # Pydantic v2 validation schemas
-│   ├── core/          # Security, config, exceptions
-│   └── main.py        # Application entry point
-├── alembic/           # DB Migrations
-├── tests/             # Pytest suite
-└── docker-compose.yml # Local DB/Redis infrastructure
+│   ├── api/v1/        # auth, payments, recipients, alerts, gateway, signals, websockets, debug
+│   ├── agents/        # LangGraph orchestrator + pipeline nodes
+│   ├── models_ai/     # OpenAI, Anthropic, Groq, Ollama, rule engine, router (fallback chain)
+│   ├── services/      # payment_saga, payment_service, signal/recipient/alert/auth/audit
+│   │   └── gateway/   # BaseGateway interface + PaymentSimulator (fake rails)
+│   ├── models/        # async SQLAlchemy 2.0 models
+│   ├── schemas/       # Pydantic v2 schemas
+│   ├── core/          # exceptions (uniform error body), security
+│   ├── db/            # async session + declarative base
+│   ├── config.py      # pydantic-settings (.env)
+│   └── main.py        # FastAPI entry (docs /docs, health /health, CORS)
+├── alembic/           # migrations (generation needs a live Postgres)
+├── tests/             # 34 pytest tests — DB-free
+├── scripts/           # seed_demo_scenarios.py
+├── Dockerfile
+├── docker-compose.yml # postgres:16 (5433) + redis:7 (6379)
+└── pyproject.toml, uv.lock
 ```
 
-## 🔌 API Reference
+> [!IMPORTANT]
+> The payment gateway is **simulated** (`PaymentSimulator`) — this build moves no real money.
 
-- **Base URL:** `/api/v1`
-- **Swagger Docs:** `GET /docs`
-- **Health Check:** `GET /health`
-- **WebSocket Alerts:** `ws://<host>/api/v1/ws/{user_id}`
+## Getting started
 
-### Key Endpoints:
-- `POST /api/v1/payments`: Initiate a new payment saga.
-- `GET /api/v1/payments/{id}`: Check payment status.
-- `POST /api/v1/signals`: Ingest external risk signals.
+Prerequisites: **Python 3.12+** and [uv](https://docs.astral.sh/uv/), **Docker**.
 
-## 🧪 Testing
+```powershell
+# 1. Install dependencies (creates .venv)
+uv sync --group dev
 
-The backend includes 32 tests (31 pass without DB, 1 auto-skips when Postgres is unavailable).
+# 2. Secrets
+Copy-Item .env.example .env   # DATABASE_URL, REDIS_URL, AI keys
 
-To run the test suite:
-```bash
-uv run pytest
+# 3. Local infra
+docker compose up -d          # Postgres on 5433, Redis on 6379
+
+# 4. Migrations
+uv run alembic upgrade head
+
+# 5. Optional demo data
+uv run python scripts/seed_demo_scenarios.py
+
+# 6. Run the API
+uv run uvicorn app.main:app --reload --port 8001
+#   /docs   Swagger UI
+#   /health health probe
 ```
 
-## 🤝 Contributing
+Environment variables (see `.env.example`):
 
-1. Check out the appropriate branch (`backend`).
-2. Adhere to the **Max 100 LOC per commit** rule.
-3. No sync SQLAlchemy patterns; use `asyncpg`.
-4. Run `uv run pytest` before submitting changes.
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `DATABASE_URL` | Async Postgres DSN (`postgresql+asyncpg://…`) | required |
+| `REDIS_URL` | Redis DSN | `redis://localhost:6379/0` |
+| `SECRET_KEY` | JWT signing secret | required |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GROQ_API_KEY` | Cloud model keys | optional (rule engine covers) |
 
-## 📄 License
+## API
 
-This project is licensed under the MIT License.
+Base URL: `/api/v1` — interactive docs at `/docs`.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /api/v1/payments` | Initiate a payment saga (analyze → auto/confirm/block) |
+| `GET /api/v1/payments/{id}` | Payment + risk report |
+| `POST /api/v1/payments/{id}/confirm` / `block` | Human-in-the-loop decisions on held transfers |
+| `POST /api/v1/signals` | Ingest SMS / QR signal, get verdict (`channel: sms|qr`) |
+| `POST /api/v1/recipients` | Add beneficiary (optional `risk_hint` blacklists flagged payees) |
+| `GET /api/v1/ws?token=<jwt>` | WebSocket — alert + payment-status stream |
+
+## Testing
+
+```powershell
+uv run pytest -q        # 34 passed — no DB/network needed (injected fakes)
+```
+
+Run targeted subsets: `uv run pytest tests/test_signal_ingest.py -v`.
+
+## Contributing
+
+See the repo-level [AGENTS.md](../../../AGENTS.md). Rule of thumb: branch (`backend`) mirrors this directory, commits stay **≤100 LOC net**, migrations require a live Postgres, and **no sync SQLAlchemy** patterns.
+
+## License
+
+[MIT](../../../LICENSE)
