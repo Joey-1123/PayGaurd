@@ -1,6 +1,7 @@
 
 # Local planning docs (do not push)
 local/
+PayGuardDocs/
 
 # Dependencies
 node_modules/
