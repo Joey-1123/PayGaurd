@@ -6,7 +6,7 @@ import { LogOut } from "lucide-react";
 
 import { useAuthStore } from "@/store/authStore";
 import { useDashboardStore } from "@/store/dashboardStore";
-import { usePaymentAlerts } from "@/lib/useAlerts";
+import { usePipelineStream } from "@/lib/usePipelineStream";
 import { fetchPipeline } from "@/lib/api";
 
 import StatsCards from "@/components/StatsCards";
@@ -20,7 +20,7 @@ export default function DashboardPage() {
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const { payments, alerts, pipeline, refresh, setPipeline } = useDashboardStore();
+  const { payments, alerts, pipeline, run, nodeRuns, refresh, setPipeline } = useDashboardStore();
 
   useEffect(() => {
     if (!token) {
@@ -33,11 +33,14 @@ export default function DashboardPage() {
     })();
   }, [token]);
 
-  usePaymentAlerts((type) => {
+  usePipelineStream((type) => {
     if (type === "alert_new" || type === "payment_status_changed") {
       refresh();
     }
   });
+
+  const live = (run.paymentId && nodeRuns[run.paymentId]) || {};
+  const settled = run.status === "idle" || run.status === "done" || run.status === "error";
 
   if (!token) return null;
 
@@ -64,8 +67,11 @@ export default function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-[1.8fr_1fr]">
         <div className="space-y-6">
           <PipelineGraph
-            mermaid={pipeline?.mermaid ?? ""}
-            trace={pipeline?.last_run?.trace}
+            nodes={pipeline?.nodes ?? []}
+            edges={pipeline?.edges ?? []}
+            live={live}
+            settled={settled}
+            lastTrace={pipeline?.last_run?.trace}
           />
           <PaymentsTable payments={payments} />
         </div>
