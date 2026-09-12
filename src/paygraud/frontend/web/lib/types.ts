@@ -34,6 +34,15 @@ export interface TraceEvent {
   summary: string;
 }
 
+export interface PipelineNodeRun {
+  paymentId: string;
+  node: string;
+  status: string;
+  score: number | null;
+  latencyMs: number;
+  summary: string;
+}
+
 export interface PipelineNode {
   id: string;
   label: string;

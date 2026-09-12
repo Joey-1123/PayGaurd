@@ -2,6 +2,7 @@ import pytest
 
 from app.agents.orchestrator import Orchestrator, RiskLevel
 from app.agents.pipeline_graph import build_pipeline
+from app.agents.pipeline_state import NODE_AGGREGATE, NODE_DECIDE, NODE_LOCAL
 from app.models_ai.base import BaseModelAI, ModelResult, ModelUnavailableError, PaymentFeatures
 from app.models_ai.rule_engine import RuleEngineModel
 
@@ -67,6 +68,35 @@ async def test_graph_cloud_fail_uses_fallback():
     orch = Orchestrator(models=[local, cloud])
     result = await orch.analyze_payment(make_features(), payment_id="p-2")
     assert len(result.model_results) == 2
+
+
+@pytest.mark.asyncio
+async def test_graph_stream_emits_on_node_in_order():
+    events: list[dict] = []
+
+    async def on_node(node_id: str, event: dict) -> None:
+        events.append({"node": node_id, **event})
+
+    orch = Orchestrator(models=[FakeModel("ollama/qwen", 70.0, 0.5)])
+    result = await orch.analyze_payment(make_features(), on_node=on_node)
+    assert [e["node"] for e in events] == [NODE_LOCAL, NODE_AGGREGATE, NODE_DECIDE]
+    assert events[0]["status"] == "danger"
+    assert events[1]["status"] == "danger"
+    assert events[2]["score"] == result.final_score
+    assert all("summary" in e and "latency_ms" in e for e in events)
+
+
+@pytest.mark.asyncio
+async def test_graph_stream_includes_cloud_and_warn():
+    events: list[dict] = []
+
+    async def on_node(node_id: str, event: dict) -> None:
+        events.append({"node": node_id, **event})
+
+    orch = Orchestrator(models=[FakeModel("ollama/qwen", 50.0, 0.5), FakeModel("openai/gpt", 40.0, 0.9)])
+    await orch.analyze_payment(make_features(), on_node=on_node)
+    assert "cloud-parallel" in [e["node"] for e in events]
+    assert events[0]["status"] in ("warn", "ok")
 
 
 @pytest.mark.asyncio
