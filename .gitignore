@@ -8,6 +8,7 @@ venv/
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # Environment files
 .env
@@ -32,34 +33,11 @@ Thumbs.db
 # Agent skills & tooling
 .agents/
 skills-lock.json
-=======
-# Local planning docs (do not push)
-local/
 
-# Dependencies
-node_modules/
-venv/
-.venv/
-__pycache__/
-*.pyc
-.pytest_cache/
+# Logs, PID & runtime artifacts
+*.log
+*.pid
 
-# Environment files
-.env
-.env.local
-.env.*.local
-
-# Build outputs
-.next/
-dist/
-build/
-*.tsbuildinfo
-.expo/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# IDE
-.idea/
-.vscode/
+# Session/chat dumps
+session-*.md
+freebuff-chat-*.md
