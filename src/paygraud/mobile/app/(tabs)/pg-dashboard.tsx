@@ -176,6 +176,7 @@ export default function PgDashboardScreen() {
 
           <Pressable
             style={({ pressed }) => [styles.actionBtn, pressed && styles.btnPressed]}
+            onPress={() => router.push('/money/pg-receive')}
             accessibilityLabel="Receive payment"
             accessibilityRole="button"
           >
@@ -185,6 +186,7 @@ export default function PgDashboardScreen() {
 
           <Pressable
             style={({ pressed }) => [styles.actionBtn, pressed && styles.btnPressed]}
+            onPress={() => router.push('/money/pg-add')}
             accessibilityLabel="Add funds to balance"
             accessibilityRole="button"
           >
