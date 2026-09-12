@@ -9,6 +9,13 @@ from app.models.user import User
 from app.schemas.recipient import RecipientCreate
 
 
+def _automated_review(recipient: Recipient) -> None:
+    complete_profile = bool(recipient.bank_name and recipient.ifsc_code and (recipient.phone or recipient.email))
+    recipient.verification_level = "automated_review"
+    recipient.risk_score = 25.0 if complete_profile else 50.0
+    recipient.risk_category = "low" if complete_profile else "medium"
+
+
 async def create_recipient(db: AsyncSession, user: User, data: RecipientCreate) -> Recipient:
     existing = await db.scalar(
         select(Recipient).where(
@@ -19,6 +26,7 @@ async def create_recipient(db: AsyncSession, user: User, data: RecipientCreate) 
     if existing:
         raise business_error("DUPLICATE_RECIPIENT", "Account already added", 409)
     recipient = Recipient(**data.model_dump(), user_id=user.id)
+    _automated_review(recipient)
     db.add(recipient)
     await db.commit()
     await db.refresh(recipient)
@@ -36,3 +44,12 @@ async def verify_recipient(db: AsyncSession, recipient: Recipient, user: User) -
     await db.commit()
     await db.refresh(recipient)
     return recipient
+
+
+def record_completed_payment(recipient: Recipient) -> None:
+    recipient.previous_transaction_count += 1
+    if recipient.previous_transaction_count >= 3:
+        recipient.is_verified = True
+        recipient.verification_level = "history_verified"
+        recipient.risk_score = min(recipient.risk_score, 25.0)
+        recipient.risk_category = "low"

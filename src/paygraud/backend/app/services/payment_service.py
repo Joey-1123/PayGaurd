@@ -9,6 +9,7 @@ from app.models.recipient import Recipient
 from app.models.user import User
 from app.schemas.payment import PaymentCreate
 from app.services import audit_service
+from app.services.recipient_service import record_completed_payment
 from app.services.gateway.base_gateway import BaseGateway
 from app.services.payment_saga import Status, action_for_level, transition
 from app.services.risk_reporting import build_features, emit_alert
@@ -97,6 +98,9 @@ class PaymentService:
         if settled.status == "settled":
             payment.status = transition(Status(payment.status), Status.COMPLETED)
             payment.confirmed_at = datetime.now(timezone.utc)
+            recipient = await db.get(Recipient, payment.recipient_id) if payment.recipient_id else None
+            if recipient:
+                record_completed_payment(recipient)
             action = "payment_settled"
         else:
             payment.status = transition(Status(payment.status), Status.FAILED)
