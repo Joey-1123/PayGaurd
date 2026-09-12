@@ -5,18 +5,19 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { IconCheck, IconX, IconFileDown, IconShieldAlert } from '@/components/icons/PayGuardIcons';
+import { IconCheck, IconX, IconFileDown, IconShieldAlert, IconAlertTriangle } from '@/components/icons/PayGuardIcons';
 import { usePayGuardLedgerData } from '@/hooks/usePayGuardLedger';
 import { formatPayGuardCurrency, timeAgo } from '@/utils/payGuardFormatters';
 import { PayGuardColors as C, PayGuardAlpha as A, PayGuardMonoFont } from '@/constants/payGuardTheme';
 
 export default function PgLedgerScreen() {
-  const [filter, setFilter] = useState<'ALL' | 'CLEARED' | 'BLOCKED'>('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'CLEARED' | 'BLOCKED' | 'PENDING'>('ALL');
   const { transfers, isFetching, refresh } = usePayGuardLedgerData();
 
   const filteredTransfers = transfers.filter((t) => {
     if (filter === 'CLEARED') return t.transferStatus === 'COMPLETED';
     if (filter === 'BLOCKED') return t.transferStatus === 'BLOCKED_BY_SHIELD';
+    if (filter === 'PENDING') return t.transferStatus === 'AWAITING_CONFIRMATION';
     return true;
   });
 
@@ -48,7 +49,7 @@ export default function PgLedgerScreen() {
 
       {/* FILTER PILLS */}
       <View style={styles.filterRow}>
-        {(['ALL', 'CLEARED', 'BLOCKED'] as const).map((f) => {
+        {(['ALL', 'CLEARED', 'PENDING', 'BLOCKED'] as const).map((f) => {
           const isActive = filter === f;
           return (
             <Pressable
@@ -59,7 +60,7 @@ export default function PgLedgerScreen() {
               accessibilityState={{ selected: isActive }}
             >
               <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
-                {f === 'BLOCKED' ? 'Blocked' : f === 'CLEARED' ? 'Cleared' : 'All Events'}
+                {f === 'BLOCKED' ? 'Blocked' : f === 'CLEARED' ? 'Cleared' : f === 'PENDING' ? 'Pending' : 'All Events'}
               </Text>
             </Pressable>
           );
@@ -69,20 +70,24 @@ export default function PgLedgerScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
         {filteredTransfers.map((t) => {
           const isBlocked = t.transferStatus === 'BLOCKED_BY_SHIELD';
+          const isPending = t.transferStatus === 'AWAITING_CONFIRMATION';
           return (
             <Pressable
               key={t.transferId}
               style={({ pressed }) => [
                 styles.itemCard,
                 isBlocked && styles.itemCardBlocked,
+                isPending && styles.itemCardPending,
                 pressed && styles.btnPressed,
               ]}
               onPress={() => router.push(`/secure-transfer/${t.transferId}`)}
               accessibilityRole="button"
             >
-              <View style={[styles.avatarBox, isBlocked && styles.avatarBoxBlocked]}>
+              <View style={[styles.avatarBox, isBlocked && styles.avatarBoxBlocked, isPending && styles.avatarBoxPending]}>
                 {isBlocked ? (
                   <IconX size={16} color={C.risk.critical} strokeWidth={2.5} />
+                ) : isPending ? (
+                  <IconAlertTriangle size={16} color={C.risk.warn} strokeWidth={2.5} />
                 ) : (
                   <IconCheck size={16} color={C.risk.safe} strokeWidth={2.5} />
                 )}
@@ -91,7 +96,12 @@ export default function PgLedgerScreen() {
               <View style={styles.infoCol}>
                 <Text style={styles.name}>{t.beneficiaryName}</Text>
                 <Text style={styles.timeMeta}>
-                  {isBlocked ? 'AUTO-BLOCKED · RISK ' + t.riskAssessmentScore : 'AI VERIFIED'} • {timeAgo(t.initiatedAt)}
+                  {isBlocked
+                    ? 'AUTO-BLOCKED · RISK ' + t.riskAssessmentScore
+                    : isPending
+                      ? 'YOUR CONSENT REQUIRED · RISK ' + t.riskAssessmentScore
+                      : 'AI VERIFIED'}{' '}
+                  • {timeAgo(t.initiatedAt)}
                 </Text>
               </View>
 
@@ -99,8 +109,14 @@ export default function PgLedgerScreen() {
                 <Text style={[styles.amount, isBlocked && styles.amountBlocked]}>
                   -{formatPayGuardCurrency(t.amount, t.currencyCode)}
                 </Text>
-                <Text style={[styles.statusText, isBlocked && styles.statusBlocked]}>
-                  {isBlocked ? 'BLOCKED' : 'COMPLETED'}
+                <Text
+                  style={[
+                    styles.statusText,
+                    isBlocked && styles.statusBlocked,
+                    isPending && styles.statusPending,
+                  ]}
+                >
+                  {isBlocked ? 'BLOCKED' : isPending ? 'NEEDS APPROVAL' : 'COMPLETED'}
                 </Text>
               </View>
             </Pressable>
@@ -205,6 +221,10 @@ const styles = StyleSheet.create({
     backgroundColor: A.danger(0.04),
     borderColor: A.danger(0.25),
   },
+  itemCardPending: {
+    backgroundColor: A.warn(0.04),
+    borderColor: A.warn(0.3),
+  },
   btnPressed: {
     opacity: 0.75,
   },
@@ -221,6 +241,10 @@ const styles = StyleSheet.create({
   avatarBoxBlocked: {
     borderColor: A.danger(0.4),
     backgroundColor: A.danger(0.1),
+  },
+  avatarBoxPending: {
+    borderColor: A.warn(0.4),
+    backgroundColor: A.warn(0.1),
   },
   infoCol: {
     flex: 1,
@@ -257,6 +281,9 @@ const styles = StyleSheet.create({
   },
   statusBlocked: {
     color: C.risk.critical,
+  },
+  statusPending: {
+    color: C.risk.warn,
   },
   emptyState: {
     alignItems: 'center',
