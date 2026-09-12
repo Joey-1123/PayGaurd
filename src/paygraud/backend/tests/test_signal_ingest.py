@@ -4,6 +4,8 @@ from httpx import ASGITransport, AsyncClient
 from app.main import app
 from app.services.ingest.extractor import extract_features
 from app.models_ai.signal_scorer import score_signal
+from app.models.recipient import Recipient
+from app.services.recipient_service import _automated_review
 
 
 # ---------- extractor / scorer (no DB) ----------
@@ -43,6 +45,26 @@ def test_unknown_link_below_phishy_path_is_medium_or_high():
     r = score_signal(f)
     assert r.risk_level in ("medium", "high")
     assert "unverified_link" in r.flags
+
+
+def test_qr_upi_payload_extracts_amount_and_payee():
+    body = "upi://pay?pa=scam.invoice.desk@upi&pn=Invoice%20Desk&am=50000"
+    f = extract_features("QR SCAN", body)
+    assert f.payee_name == "scam.invoice.desk@upi"
+    assert f.amount == 50000.0
+    assert f.link_domain == "upi"
+    r = score_signal(f)
+    assert r.risk_level == "critical"
+    assert r.action == "reject"
+    assert {"elevated_amount", "suspicious_upi_request", "unverified_link"} <= set(r.flags)
+
+
+def test_risk_hint_flags_recipient_as_critical():
+    r = Recipient(user_id=None, name="x", account_number="a")
+    _automated_review(r, "critical")
+    assert r.risk_category == "critical"
+    assert r.risk_score == 95.0
+    assert r.verification_level == "flagged"
 
 
 # ---------- API smoke (requires live Postgres + Redis) ----------

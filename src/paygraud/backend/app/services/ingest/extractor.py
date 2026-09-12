@@ -2,6 +2,7 @@
 
 import re
 from dataclasses import dataclass
+from urllib.parse import unquote
 
 URL_RE = re.compile(r"https?://[^\s]+")
 BARE_DOMAIN_RE = re.compile(
@@ -9,7 +10,8 @@ BARE_DOMAIN_RE = re.compile(
     re.IGNORECASE,
 )
 AMOUNT_RE = re.compile(r"(?:inr\s*|rs\.?\s*|₹\s*)([\d,]+(?:\.\d{1,2})?)", re.IGNORECASE)
-UPI_RE = re.compile(r"upi://pay\?pa=([^&]+)?.*?(?:&tn=([^&]*))?", re.IGNORECASE)
+UPI_SCHEME_RE = re.compile(r"upi://pay[^\s]*", re.IGNORECASE)
+UPI_PARAM_RE = re.compile(r"(?:^|[?&])(pa|pn|am|tn)=([^&]+)", re.IGNORECASE)
 PLAIN_UPI_RE = re.compile(r"([\w.-]+@(?:upi|oksbi|ybl|paytm|ibl|axl|payu))", re.IGNORECASE)
 
 KNOWN_LEGIT_SHORTCODES = {
@@ -61,7 +63,16 @@ def extract_features(sender: str, body: str) -> SignalFeatures:
     if url_match:
         link = url_match.group(0)
         domain = _hostname(link)
-    else:
+
+    upi_match = UPI_SCHEME_RE.search(body)
+    upi_params: dict[str, str] = {}
+    if upi_match:
+        upi_seg = upi_match.group(0)
+        upi_params = {k.lower(): unquote(v) for k, v in UPI_PARAM_RE.findall(upi_seg)}
+        if link is None:
+            link = upi_seg
+            domain = "upi"
+    if link is None:
         bd = BARE_DOMAIN_RE.search(body)
         if bd:
             link = bd.group(0).strip(".")
@@ -73,15 +84,17 @@ def extract_features(sender: str, body: str) -> SignalFeatures:
         amount = float(explicit.group(1).replace(",", ""))
 
     payee = None
-    upi = UPI_RE.search(body)
-    if upi and upi.group(1):
-        payee = upi.group(1)
-    elif upi and upi.group(2):
-        payee = upi.group(2)
-    else:
+    payee = upi_params.get("pa") or upi_params.get("pn")
+    if payee is None:
         plain = PLAIN_UPI_RE.search(body)
         if plain:
             payee = plain.group(1)
+
+    if upi_params.get("am"):
+        try:
+            amount = float(upi_params["am"].replace(",", ""))
+        except ValueError:
+            pass
 
     lowered = sender.lower()
     sender_looks_bank = any(brand in lowered for brand in BANK_BRANDS)
@@ -93,6 +106,6 @@ def extract_features(sender: str, body: str) -> SignalFeatures:
         link_domain=domain,
         has_link=bool(link),
         amount=amount,
-        payee_name=payee or ("unknown" if upi else None),
+        payee_name=payee or ("unknown" if upi_match else None),
         sender_looks_bank=sender_looks_bank,
     )

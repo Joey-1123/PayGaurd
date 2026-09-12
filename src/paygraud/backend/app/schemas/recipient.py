@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -10,6 +11,8 @@ class RecipientCreate(BaseModel):
     ifsc_code: str | None = None
     phone: str | None = None
     email: str | None = None
+    # Optional risk override — lets a scanner flag a payee as high-risk on creation.
+    risk_hint: Literal["low", "medium", "high", "critical"] | None = None
 
 
 class RecipientOut(BaseModel):

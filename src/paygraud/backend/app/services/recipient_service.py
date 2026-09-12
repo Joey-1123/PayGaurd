@@ -9,7 +9,16 @@ from app.models.user import User
 from app.schemas.recipient import RecipientCreate
 
 
-def _automated_review(recipient: Recipient) -> None:
+RISK_HINT_SCORE = {"low": 10.0, "medium": 50.0, "high": 80.0, "critical": 95.0}
+RISK_HINT_CATEGORY = {"low": "low", "medium": "medium", "high": "high", "critical": "critical"}
+
+
+def _automated_review(recipient: Recipient, risk_hint: str | None = None) -> None:
+    if risk_hint in RISK_HINT_SCORE:
+        recipient.verification_level = "flagged" if risk_hint in ("high", "critical") else "automated_review"
+        recipient.risk_score = RISK_HINT_SCORE[risk_hint]
+        recipient.risk_category = RISK_HINT_CATEGORY[risk_hint]
+        return
     complete_profile = bool(recipient.bank_name and recipient.ifsc_code and (recipient.phone or recipient.email))
     recipient.verification_level = "automated_review"
     recipient.risk_score = 25.0 if complete_profile else 50.0
@@ -25,8 +34,8 @@ async def create_recipient(db: AsyncSession, user: User, data: RecipientCreate) 
     )
     if existing:
         raise business_error("DUPLICATE_RECIPIENT", "Account already added", 409)
-    recipient = Recipient(**data.model_dump(), user_id=user.id)
-    _automated_review(recipient)
+    recipient = Recipient(**data.model_dump(exclude={"risk_hint"}), user_id=user.id)
+    _automated_review(recipient, data.risk_hint)
     db.add(recipient)
     await db.commit()
     await db.refresh(recipient)
