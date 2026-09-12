@@ -285,6 +285,25 @@ export const PayGuardNetworkClient = {
     return data.map(recipientToBeneficiary);
   },
 
+  /**
+   * Create a recipient with an optional risk override.
+   * QR scanner flags a rejected payee as critical so the payment saga
+   * blacklists it before authorize is ever called.
+   * POST /recipients
+   */
+  createRecipient: async (payload: {
+    name: string;
+    accountNumber: string;
+    riskHint?: 'low' | 'medium' | 'high' | 'critical';
+  }): Promise<PayGuardApiRecipient> => {
+    const { data } = await client.post<PayGuardApiRecipient>('/recipients', {
+      name: payload.name,
+      account_number: payload.accountNumber,
+      ...(payload.riskHint ? { risk_hint: payload.riskHint } : {}),
+    });
+    return data;
+  },
+
   // ─────────────────────────────────────────
   // 📥 INBOUND SIGNALS (SMS interception)
   // ─────────────────────────────────────────
