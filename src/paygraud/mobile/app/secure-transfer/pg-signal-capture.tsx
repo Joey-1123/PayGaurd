@@ -1,7 +1,7 @@
 // Location: app/secure-transfer/pg-signal-capture.tsx
 // SMS Signal Capture — paste or preset demo SMS → backend verdict
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 import {
   IconArrowLeft,
   IconShieldCheck,
@@ -70,6 +71,33 @@ export default function PgSignalCaptureScreen() {
   const [result, setResult] = useState<PayGuardInboundSignal | null>(null);
   const [recentSignals, setRecentSignals] = useState<PayGuardInboundSignal[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
+  const autoIngested = useRef(false);
+
+  const captureFromClipboard = async () => {
+    const text = (await Clipboard.getStringAsync().catch(() => '')).trim();
+    if (text.length < 15 || autoIngested.current) return;
+    autoIngested.current = true;
+    await handleAnalyzeWithBody(text);
+  };
+
+  useEffect(() => {
+    captureFromClipboard();
+  }, []);
+
+  // Native SMS interception (Tier B) — only on a dev/native build, never Expo Go.
+  useEffect(() => {
+    let sub: { remove: () => void } | null = null;
+    (async () => {
+      const { default: Constants } = await import('expo-constants');
+      if (Constants.executionEnvironment === 'storeClient') return;
+      const { subscribeToSms } = await import('../../modules/payguard-sms');
+      sub = subscribeToSms(({ sender, body }) => {
+        handleAnalyzeWithBody(body, sender);
+      });
+    })();
+    return () => sub?.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     PayGuardNetworkClient.fetchSignals()
@@ -85,15 +113,23 @@ export default function PgSignalCaptureScreen() {
   };
 
   const handleAnalyze = async () => {
-    if (!body.trim()) return;
+    await handleAnalyzeWithBody(body.trim(), sender.trim());
+  };
+
+  const handleAnalyzeWithBody = async (
+    message: string,
+    sourceSender = 'CLIPBOARD'
+  ) => {
+    if (!message) return;
     setAnalyzing(true);
     setResult(null);
     try {
       const signal = await PayGuardNetworkClient.captureSignal({
-        sender: sender.trim() || 'UNKNOWN',
-        body: body.trim(),
+        sender: sourceSender || 'CLIPBOARD',
+        body: message,
         channel: 'sms',
       });
+      setBody(message);
       setResult(signal);
       setRecentSignals((prev) => [signal, ...prev].slice(0, 10));
     } catch {
@@ -119,7 +155,13 @@ export default function PgSignalCaptureScreen() {
           <IconArrowLeft size={20} color="#FFFFFF" />
         </Pressable>
         <Text style={styles.topBarTitle}>SIGNAL LAB</Text>
-        <View style={{ width: 44 }} />
+        <Pressable
+          style={({ pressed }) => [styles.caseStudyLink, pressed && styles.btnPressed]}
+          onPress={() => router.push('/secure-transfer/pg-case-study')}
+          accessibilityRole="button"
+        >
+          <Text style={styles.caseStudyLinkText}>CASE STUDY</Text>
+        </Pressable>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -171,6 +213,18 @@ export default function PgSignalCaptureScreen() {
               <Text style={styles.analyzeBtnText}>Analyze Signal</Text>
             </>
           )}
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.clipBtn, pressed && styles.btnPressed]}
+          onPress={() => {
+            autoIngested.current = false;
+            captureFromClipboard();
+          }}
+          disabled={analyzing}
+        >
+          <IconZap size={14} color={C.gray.white} />
+          <Text style={styles.clipBtnText}>Capture from Clipboard</Text>
         </Pressable>
 
         {/* VERDICT CARD */}
@@ -260,6 +314,14 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
   topBarTitle: { color: C.gray.white, fontSize: 13, fontWeight: 'bold', letterSpacing: 1.5 },
+  caseStudyLink: {
+    borderWidth: 1,
+    borderColor: C.risk.critical,
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  caseStudyLinkText: { color: C.risk.critical, fontSize: 9, fontWeight: 'bold', letterSpacing: 1 },
   scroll: { paddingHorizontal: 20, paddingTop: 20 },
   sectionLabel: { color: C.gray[600], fontSize: 10, fontWeight: 'bold', letterSpacing: 1.5, marginBottom: 10 },
   presetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
@@ -292,6 +354,18 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   analyzeBtnText: { color: C.gray.black, fontSize: 14, fontWeight: 'bold' },
+  clipBtn: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: C.gray[800],
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 24,
+  },
+  clipBtnText: { color: C.gray.white, fontSize: 12, fontWeight: '600' },
   verdictCard: {
     borderWidth: 1,
     borderRadius: 12,
