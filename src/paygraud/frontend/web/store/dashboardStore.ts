@@ -10,7 +10,7 @@ import {
   fetchTrace,
   type Recipient,
 } from "@/lib/api";
-import type { Alert, Payment, PipelineSnapshot, TraceEvent } from "@/lib/types";
+import type { Alert, Payment, PipelineNodeRun, PipelineSnapshot, TraceEvent } from "@/lib/types";
 
 interface RunState {
   scenarioId: string | null;
@@ -25,6 +25,7 @@ interface DashboardState {
   alerts: Alert[];
   pipeline: PipelineSnapshot | null;
   run: RunState;
+  nodeRuns: Record<string, Record<string, PipelineNodeRun>>;
   loading: boolean;
   refresh: () => Promise<void>;
   runScenario: (
@@ -34,6 +35,7 @@ interface DashboardState {
     recipientName?: string
   ) => Promise<void>;
   setPipeline: (pipeline: PipelineSnapshot) => void;
+  pushNodeRun: (frame: PipelineNodeRun) => void;
 }
 
 const initialRun: RunState = {
@@ -49,6 +51,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   alerts: [],
   pipeline: null,
   run: initialRun,
+  nodeRuns: {},
   loading: false,
 
   refresh: async () => {
@@ -62,7 +65,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   },
 
   runScenario: async (scenarioId, amount, description, recipientName) => {
-    set({ run: { ...initialRun, scenarioId, status: "creating" } });
+    set({ run: { ...initialRun, scenarioId, status: "creating" }, nodeRuns: {} });
     try {
       let recipientId: string | undefined;
       if (recipientName) {
@@ -91,4 +94,15 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   },
 
   setPipeline: (pipeline) => set({ pipeline }),
+
+  pushNodeRun: (frame) =>
+    set((state) => ({
+      nodeRuns: {
+        ...state.nodeRuns,
+        [frame.paymentId]: {
+          ...(state.nodeRuns[frame.paymentId] ?? {}),
+          [frame.node]: frame,
+        },
+      },
+    })),
 }));
