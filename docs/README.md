@@ -1,6 +1,10 @@
 # docs
 
-Project documentation and diagrams.
+Project documentation and diagrams for PayGuard.
 
-- `project_plan.md` — milestones, demo scenarios, next actions
-- Planning detail lives in the gitignored `local/` folder
+| File | Contents |
+| --- | --- |
+| [`project_plan.md`](./project_plan.md) | Milestones, demo scenarios, next actions |
+
+> [!NOTE]
+> Detailed design docs (`BACKEND.md`, `MOBILE.md`, `FRONTEND.md`, `MULTI_MODEL.md`, `DATABASES.md`, `ARCHITECTURE.md`, …) live in the **gitignored** `local/` folder and are never committed.
