@@ -41,10 +41,29 @@ class PaymentService:
             {"user_id": str(user.id), "transferId": str(payment.id), "status": str(payment.status)},
         )
 
+    async def _notify_pipeline_node(self, user: User, payment: Payment, node_id: str, event: dict) -> None:
+        """Push each LangGraph node transition over the realtime stream (WS + Redis)."""
+        await self.publisher(
+            "pipeline_node",
+            {
+                "user_id": str(user.id),
+                "paymentId": str(payment.id),
+                "node": event["node"],
+                "status": event["status"],
+                "score": event["score"],
+                "latencyMs": event["latency_ms"],
+                "summary": event["summary"],
+            },
+        )
+
     async def analyze_and_route(self, db: AsyncSession, payment: Payment, user: User) -> Payment:
         recipient = await db.get(Recipient, payment.recipient_id) if payment.recipient_id else None
         features = await build_features(db, user, payment, recipient)
-        assessment = await self.orchestrator.analyze_payment(features, payment_id=str(payment.id))
+        assessment = await self.orchestrator.analyze_payment(
+            features,
+            payment_id=str(payment.id),
+            on_node=lambda node_id, event: self._notify_pipeline_node(user, payment, node_id, event),
+        )
         payment.status = transition(Status(payment.status), Status.ANALYZING)
         payment.risk_score = assessment.final_score
         payment.risk_level = assessment.risk_level.value

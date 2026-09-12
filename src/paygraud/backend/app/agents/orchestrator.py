@@ -1,11 +1,14 @@
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 
 from app.agents.pipeline_graph import build_pipeline
 from app.agents.pipeline_trace import trace_store
-from app.agents.pipeline_state import PipelineState
+from app.agents.pipeline_state import NODE_AGGREGATE, TracerEvent
 from app.models_ai.base import BaseModelAI, ModelResult, PaymentFeatures
 from app.models_ai.router import get_available_models, make_rule_engine
+
+NodeCallback = Callable[[str, dict], Awaitable[None]]
 
 
 class RiskLevel(Enum):
@@ -39,6 +42,21 @@ def recommend(level: RiskLevel) -> str:
     }[level]
 
 
+def _node_status(event: TracerEvent, state: dict) -> str:
+    """Score/level → ok | warn | danger for the live pipeline canvas."""
+    score = event.score
+    if score is not None:
+        if score <= 30:
+            return "ok"
+        if score <= 60:
+            return "warn"
+        return "danger"
+    if event.node == NODE_AGGREGATE:
+        level = state.get("risk_level")
+        return {"low": "ok", "medium": "warn", "high": "danger", "critical": "danger"}.get(level, "ok")
+    return "ok"
+
+
 class Orchestrator:
     """Facade over the compiled LangGraph pipeline (keeps existing call sites + tests)."""
 
@@ -48,11 +66,29 @@ class Orchestrator:
         self._pipeline = build_pipeline(self._models, self._fallback)
 
     async def analyze_payment(
-        self, features: PaymentFeatures, payment_id: str | None = None
+        self,
+        features: PaymentFeatures,
+        payment_id: str | None = None,
+        on_node: NodeCallback | None = None,
     ) -> RiskAssessment:
-        state: PipelineState = await self._pipeline.ainvoke(
-            PipelineState(features=features, trace=[])
-        )
+        state: dict = {"features": features, "trace": []}
+        async for update in self._pipeline.astream(state, stream_mode="updates"):
+            for node_id, payload in update.items():
+                if node_id.startswith("__") or not isinstance(payload, dict):
+                    continue
+                state.update(payload)
+                if on_node is not None and payload.get("trace"):
+                    event: TracerEvent = payload["trace"][-1]
+                    await on_node(
+                        node_id,
+                        {
+                            "node": event.node,
+                            "status": _node_status(event, state),
+                            "score": event.score,
+                            "latency_ms": event.latency_ms,
+                            "summary": event.summary,
+                        },
+                    )
         if payment_id is not None:
             trace_store.put(str(payment_id), state.get("trace", []))
         return RiskAssessment(
