@@ -12,6 +12,7 @@ interface PayGuardLedgerState {
   // Actions
   setTransfers: (transfers: PayGuardSecureTransfer[]) => void;
   addTransfer: (transfer: PayGuardSecureTransfer) => void;
+  upsertTransfer: (transfer: PayGuardSecureTransfer) => void;
   updateTransferStatus: (transferId: string, status: PayGuardSecureTransfer['transferStatus']) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -27,6 +28,13 @@ export const usePayGuardLedger = create<PayGuardLedgerState>((set) => ({
 
   addTransfer: (transfer) =>
     set((state) => ({ transfers: [transfer, ...state.transfers] })),
+
+  upsertTransfer: (transfer) =>
+    set((state) => ({
+      transfers: state.transfers.some((t) => t.transferId === transfer.transferId)
+        ? state.transfers.map((t) => (t.transferId === transfer.transferId ? transfer : t))
+        : [transfer, ...state.transfers],
+    })),
 
   updateTransferStatus: (transferId, status) =>
     set((state) => ({

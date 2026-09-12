@@ -6,7 +6,7 @@
 // It also needs to update the Zustand stores when events arrive.
 // A hook manages this lifecycle cleanly with useEffect.
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import {
   connectToShieldEngine,
   disconnectFromShieldEngine,
@@ -16,6 +16,7 @@ import {
   removeListener,
 } from '@/services/PayGuardThreatStream';
 import { PayGuardNetworkClient } from '@/services/PayGuardNetworkClient';
+import { notifyTransfer } from '@/services/payGuardLocalNotifier';
 import { usePayGuardSession } from '@/store/payGuardSessionStore';
 import { usePayGuardThreats } from '@/store/threatIntelligenceStore';
 import { usePayGuardLedger } from '@/store/payGuardLedgerStore';
@@ -32,7 +33,13 @@ import { toTransferStatus } from '@/utils/payGuardApiMappers';
 export const usePayGuardThreatStream = () => {
   const { activeIdentity, isAuthenticated } = usePayGuardSession();
   const { setAlerts, updateRiskScore } = usePayGuardThreats();
-  const { updateTransferStatus } = usePayGuardLedger();
+  const { transfers, upsertTransfer, updateTransferStatus } = usePayGuardLedger();
+
+  // Reflect the latest ledger into a ref so handleTransferStatus stays a
+  // stable callback — otherwise every store update re-runs the WS effect
+  // below and the socket tears down + reconnects (churn, missed events).
+  const transfersRef = useRef(transfers);
+  transfersRef.current = transfers;
 
   const refreshAlertFeed = useCallback(async () => {
     try {
@@ -42,6 +49,26 @@ export const usePayGuardThreatStream = () => {
       // backend offline — keep current feed
     }
   }, [setAlerts]);
+
+  const handleTransferStatus = useCallback(
+    async (transferId: string, status: string) => {
+      const mapped = toTransferStatus(status);
+      let transfer = transfersRef.current.find((t) => t.transferId === transferId);
+      if (!transfer) {
+        try {
+          // Payment may have been initiated on another device (web) — fetch once
+          // so the ledger shows it and the notification carries full details.
+          transfer = await PayGuardNetworkClient.fetchTransferById(transferId);
+          upsertTransfer(transfer);
+        } catch {
+          return;
+        }
+      }
+      updateTransferStatus(transferId, mapped);
+      void notifyTransfer({ ...transfer, transferStatus: mapped });
+    },
+    [upsertTransfer, updateTransferStatus]
+  );
 
   useEffect(() => {
     // Only connect if user is logged in and has a token
@@ -56,11 +83,10 @@ export const usePayGuardThreatStream = () => {
       void refreshAlertFeed();
     });
 
-    // 3. Listen for transfer status changes → update ledger store.
-    //    The wire carries the backend status (e.g. "awaiting_confirmation");
-    //    map it to the display model (FLAGGED) like the REST mappers do.
+    // 3. Listen for transfer status changes → inject into ledger (upserting
+    //    transfers the device has never seen) + raise a device notification.
     listenForTransferStatusUpdates(({ transferId, status }) => {
-      updateTransferStatus(transferId, toTransferStatus(status));
+      void handleTransferStatus(transferId, status);
     });
 
     // 4. Listen for live risk score updates → update threat store
@@ -75,7 +101,7 @@ export const usePayGuardThreatStream = () => {
       removeListener('risk_score_updated');
       disconnectFromShieldEngine();
     };
-  }, [isAuthenticated, activeIdentity?.token, refreshAlertFeed]);
+  }, [isAuthenticated, activeIdentity?.token, refreshAlertFeed, handleTransferStatus]);
 };
 
 /**
