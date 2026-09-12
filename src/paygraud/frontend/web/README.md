@@ -1,108 +1,88 @@
-# 🛡️ PayGuard Frontend / Web
+<div align="center">
 
-> **Agentic Guardian for Real-Time Payment Scam Interception**
-> Admin & Analyst Web Dashboard
+# PayGuard Web Dashboard
 
-![Next.js](https://img.shields.io/badge/Next.js-14.2-black?style=for-the-badge&logo=next.js)
-![React](https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
-![Tailwind](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?style=for-the-badge&logo=tailwind-css)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+### Real-time fraud monitoring & payment interception for analysts
 
-## 📖 Overview
+[![Next.js](https://img.shields.io/badge/Next.js-14.2-black?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/License-MIT-green)](#license)
 
-The PayGuard Frontend/Web sub-project provides a comprehensive dashboard for risk monitoring and payment interception analysis. Built for admins and fraud analysts, the interface visualizes real-time payment sagas, agent reasoning paths, and overall threat intelligence metrics gathered by the PayGuard backend.
+</div>
 
-## ✨ Features
+---
 
-- **Real-Time Threat Monitoring:** Track payment risk scores and interception status instantly.
-- **Saga Visualizations:** Dynamic flowcharts of payment lifecycles using Mermaid.js.
-- **Agent Reasoning Transparency:** Drill down into multi-model AI agent evaluations and justifications for blocked transactions.
-- **Responsive Design:** Crafted with Tailwind CSS for optimal viewing across various desktop monitors.
-- **Robust State Management:** High-performance, scalable state handling with Zustand.
+## What is this?
 
-## 🏗️ Architecture
+The PayGuard web dashboard is the analyst console for the [PayGuard backend](../../backend/README.md). It visualizes the **payment saga in real time** — risk scores from the multi-model AI ensemble, interception status, and the live alert stream — and lets analysts resolve **held (human-in-the-loop) payments** directly from the table.
 
-The application is built using the Next.js 14 App Router (`app/` directory). It leverages a modern frontend stack:
-- **Framework:** Next.js 14.2, React 18
-- **Language:** TypeScript 5
-- **Styling:** Tailwind CSS 3
-- **State Management:** Zustand 5
-- **Data Fetching:** Axios
-- **Diagrams:** Mermaid 12
-- **Icons:** Lucide React
+## Features
 
-It connects to the PayGuard backend via REST APIs located at `/api/v1`.
+- **Live threat table** — every payment with its risk band, blacklisted / held / cleared status, and one-click **Approve / Block** on `awaiting_confirmation` rows.
+- **Real-time updates** — the table and alert feed refresh on WebSocket frames from the backend.
+- **Saga visualization** — Mermaid lifecycle diagrams of payment states.
+- **Agent transparency** — drill into per-model evaluations behind every decision.
+- **Responsive analytics UI** — Tailwind CSS + Zustand state store.
 
-## 📋 Prerequisites
+## Stack
 
-Ensure you have the following installed on your local machine:
-- Node.js (v18 or higher recommended)
-- npm (v9 or higher) or yarn/pnpm
+| Layer | Choice |
+| --- | --- |
+| Framework | Next.js 14 (App Router) + React 18 |
+| Language | TypeScript 5 |
+| Styling | Tailwind CSS 3 |
+| State | Zustand 5 |
+| HTTP | Axios (`lib/api.ts`) |
+| Diagrams | Mermaid |
+| Icons | Lucide React |
 
-## 💻 Installation
+## Getting started
 
-1. Clone the repository and navigate to the web frontend directory:
-   ```bash
-   cd src/paygraud/frontend/web
-   ```
-2. Install the dependencies:
-   ```bash
-   npm install
-   ```
+Prerequisites: **Node.js 20+**, **npm 10+**.
 
-## 🚀 Running
+```powershell
+cd src\paygraud\frontend\web
 
-### Development Mode
+# 1. Install dependencies
+npm install
 
-Run the development server on `http://localhost:3000`:
-```bash
+# 2. Point at the backend (see backend README)
+#    src\paygraud\frontend\web\.env.local
+#    NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
+
+# 3. Development server  →  http://localhost:3000
 npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result. The page auto-updates as you modify files like `app/page.tsx`.
 
-### Production Build
-
-To build and run the production-optimized application:
-```bash
+# 4. Production build / serve
 npm run build
 npm start
 ```
 
-## 🔐 Environment Variables
+| Variable | Purpose | Example |
+| --- | --- | --- |
+| `NEXT_PUBLIC_API_URL` | Backend REST base | `http://localhost:8001/api/v1` |
 
-Create a `.env.local` file in the root of `src/paygraud/frontend/web` with the following variables:
-
-```env
-# Base URL for the PayGuard backend API
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-```
-
-## 📂 Project Structure
+## Project structure
 
 ```text
 src/paygraud/frontend/web/
 ├── app/
-│   ├── page.tsx          # Main dashboard view
-│   ├── login/            # Authentication pages
-│   └── layout.tsx        # Root layout
-├── components/           # Reusable React components (UI, charts, forms)
-├── lib/                  # Utilities, Axios instances, formatting tools
-├── store/                # Zustand state stores
-├── public/               # Static assets
-├── tailwind.config.ts    # Tailwind styling configuration
-├── next.config.mjs       # Next.js configuration
-├── package.json          # Dependencies and scripts
-└── README.md             # This documentation file
+│   ├── layout.tsx      # root layout
+│   ├── page.tsx        # main dashboard view
+│   └── login/          # authentication
+├── components/         # UI components (PaymentsTable, charts, forms)
+├── lib/                # axios instance, api.ts, formatters, types
+├── store/              # Zustand stores (dashboard, alerts)
+├── public/             # static assets
+└── config/             # next.config.mjs, tailwind.config.ts, package.json
 ```
 
-## 🤝 Contributing
+## Contributing
 
-Contributions to the PayGuard Web Frontend are welcome! Please adhere to the main repository's contribution guidelines.
-- Keep commits small and focused (under 100 LOC when possible).
-- Use clear, descriptive commit messages.
-- Ensure all TypeScript checks and builds pass before submitting a Pull Request.
+See the repo-level [AGENTS.md](../../../AGENTS.md). Work for this directory lands on the `frontend_web` branch; keep commits small, and run `npm run build` before submitting.
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License.
+[MIT](../../../LICENSE)
