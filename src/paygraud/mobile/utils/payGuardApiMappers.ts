@@ -46,12 +46,12 @@ const LEVEL_TO_DECISION: Record<RiskLevel, RiskDecision> = {
 const STATUS_MAP: Record<string, TransferStatus> = {
   pending: 'PENDING_ANALYSIS',
   analyzing: 'PENDING_ANALYSIS',
-  awaiting_confirmation: 'FLAGGED',
-  confirmed: 'FLAGGED',
+  awaiting_confirmation: 'AWAITING_CONFIRMATION',
+  confirmed: 'CONFIRMED',
   completed: 'COMPLETED',
   blocked: 'BLOCKED_BY_SHIELD',
-  canceled: 'FLAGGED',
-  failed: 'FLAGGED',
+  canceled: 'CANCELED',
+  failed: 'FAILED',
 };
 
 export const toRiskLevel = (level?: string | null): RiskLevel => {

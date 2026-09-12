@@ -39,7 +39,11 @@ export interface PayGuardAuthResponse {
 export type TransferStatus =
   | 'COMPLETED'
   | 'PENDING_ANALYSIS'
+  | 'AWAITING_CONFIRMATION'
+  | 'CONFIRMED'
   | 'BLOCKED_BY_SHIELD'
+  | 'CANCELED'
+  | 'FAILED'
   | 'FLAGGED';
 
 export interface PayGuardSecureTransfer {

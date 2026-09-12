@@ -80,7 +80,11 @@ export const PayGuardColors = {
   status: {
     COMPLETED: '#00FF66',
     PENDING_ANALYSIS: '#888888',
+    AWAITING_CONFIRMATION: '#FFB800',
+    CONFIRMED: '#FFB800',
     BLOCKED_BY_SHIELD: '#FF2A2A',
+    CANCELED: '#888888',
+    FAILED: '#FF2A2A',
     FLAGGED: '#FFB800',
   },
 } as const;
