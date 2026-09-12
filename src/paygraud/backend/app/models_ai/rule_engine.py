@@ -41,6 +41,13 @@ class RuleEngineModel(BaseModelAI):
             score += 15
             flags.append("new_recipient")
 
+        if features.high_velocity:
+            score += 20
+            flags.append("high_payment_velocity")
+        if features.recent_signal_risk in ("high", "critical"):
+            score += 30 if features.recent_signal_risk == "critical" else 20
+            flags.append("linked_scam_signal")
+
         if features.recipient_risk_category in ("high", "critical"):
             score += 20
             flags.append("flagged_recipient")

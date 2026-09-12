@@ -17,6 +17,9 @@ class PaymentFeatures:
     previous_tx_count: int
     user_avg_transaction: float
     user_tx_frequency: int
+    high_velocity: bool = False
+    recent_signal_risk: str | None = None
+    recent_signal_context: str = ""
 
     def to_prompt(self) -> dict:
         return {
@@ -29,6 +32,9 @@ class PaymentFeatures:
             "previous_tx_count": self.previous_tx_count,
             "user_avg_transaction": self.user_avg_transaction,
             "user_tx_frequency": self.user_tx_frequency,
+            "high_velocity": self.high_velocity,
+            "recent_signal_risk": self.recent_signal_risk,
+            "recent_signal_context": self.recent_signal_context,
         }
 
 

@@ -96,3 +96,16 @@ async def test_rule_engine_demo_scenarios_match_narrative():
         result = await engine.analyze(features)
         level = "low" if result.risk_score <= 30 else "medium" if result.risk_score <= 60 else "high" if result.risk_score <= 85 else "critical"
         assert level == expected.value, (result.risk_score, result.flags)
+
+
+@pytest.mark.asyncio
+async def test_rule_engine_flags_velocity_and_linked_signal():
+    result = await RuleEngineModel().analyze(
+        PaymentFeatures(
+            amount=100, currency="INR", description="", recipient_name="Alex",
+            recipient_verified=True, recipient_risk_category="low", previous_tx_count=4,
+            user_avg_transaction=100, user_tx_frequency=4, high_velocity=True,
+            recent_signal_risk="critical", recent_signal_context="Urgent scam involving Alex",
+        )
+    )
+    assert {"high_payment_velocity", "linked_scam_signal"} <= set(result.flags)
