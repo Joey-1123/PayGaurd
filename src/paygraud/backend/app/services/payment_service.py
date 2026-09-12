@@ -70,8 +70,12 @@ class PaymentService:
         return await self._capture(db, payment, user)
 
     async def block(self, db: AsyncSession, payment: Payment, user: User, block_reason: str = "") -> Payment:
-        if payment.gateway_reference:
-            await self.gateway.cancel(payment.gateway_reference)
+        # Authorize-first: held payments are never authorized, so there is no hold
+        # to cancel yet. Capturing without a reference would 500 in the gateway.
+        if not payment.gateway_reference:
+            auth = await self.gateway.authorize(user_id=str(user.id), amount=float(payment.amount), currency=payment.currency)
+            payment.gateway_reference = auth.auth_reference
+        await self.gateway.cancel(payment.gateway_reference)
         payment.status = transition(Status(payment.status), Status.BLOCKED)
         await audit_service.log(db, "blocked_payment", user.id, payment.id, "payment", payment.id, {"reason": block_reason})
         await db.commit()
@@ -86,6 +90,9 @@ class PaymentService:
         return await self._capture(db, payment, user)
 
     async def _capture(self, db: AsyncSession, payment: Payment, user: User) -> Payment:
+        if not payment.gateway_reference:
+            auth = await self.gateway.authorize(user_id=str(user.id), amount=float(payment.amount), currency=payment.currency)
+            payment.gateway_reference = auth.auth_reference
         settled = await self.gateway.capture(payment.gateway_reference, payment.currency)
         if settled.status == "settled":
             payment.status = transition(Status(payment.status), Status.COMPLETED)
