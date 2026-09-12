@@ -1,8 +1,8 @@
 // Location: app/secure-transfer/[transactionId].tsx
 // Pure Black & White Minimalist Transaction Audit & Risk Breakdown
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import {
@@ -12,9 +12,12 @@ import {
   IconFileDown,
   IconAlertTriangle,
   IconCpu,
+  IconCheck,
+  IconShieldAlert,
 } from '@/components/icons/PayGuardIcons';
 import { formatPayGuardCurrency, formatPayGuardDate, formatPayGuardTime } from '@/utils/payGuardFormatters';
-import { PayGuardNetworkClient } from '@/services/PayGuardNetworkClient';
+import { PayGuardNetworkClient, extractApiError } from '@/services/PayGuardNetworkClient';
+import { usePayGuardLedger } from '@/store/payGuardLedgerStore';
 import { PayGuardColors as C, PayGuardAlpha as A, PayGuardMonoFont } from '@/constants/payGuardTheme';
 import type { PayGuardSecureTransfer } from '@/types/payGuardModels';
 
@@ -31,6 +34,8 @@ export default function TransactionDetailScreen() {
   const [models, setModels] = useState<ModelBreakdown[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const updateTransferStatus = usePayGuardLedger((s) => s.updateTransferStatus);
 
   useEffect(() => {
     if (!transactionId) return;
@@ -49,6 +54,34 @@ export default function TransactionDetailScreen() {
 
     return () => { cancelled = true; };
   }, [transactionId]);
+
+  const applyDecision = useCallback(async (action: 'confirm' | 'block') => {
+    if (!transactionId || busy) return;
+    setBusy(true);
+    try {
+      const updated =
+        action === 'confirm'
+          ? await PayGuardNetworkClient.confirmTransfer(transactionId)
+          : await PayGuardNetworkClient.blockTransfer(transactionId);
+      setTransfer(updated);
+      updateTransferStatus(updated.transferId, updated.transferStatus);
+    } catch (e) {
+      Alert.alert(action === 'confirm' ? 'Could not confirm' : 'Could not block', extractApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [transactionId, busy, updateTransferStatus]);
+
+  const handleBlock = () => {
+    Alert.alert(
+      'Block this payment?',
+      'The held authorization will be canceled. No money reaches the beneficiary.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Block', style: 'destructive', onPress: () => void applyDecision('block') },
+      ]
+    );
+  };
 
   if (loadFailed) {
     return (
@@ -90,6 +123,7 @@ export default function TransactionDetailScreen() {
 
   const safeTransfer = transfer;
   const isBlocked = safeTransfer.transferStatus === 'BLOCKED_BY_SHIELD';
+  const isPending = safeTransfer.transferStatus === 'AWAITING_CONFIRMATION';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -110,18 +144,41 @@ export default function TransactionDetailScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* HERO AMOUNT & STATUS */}
         <View style={styles.heroCard}>
-          <View style={[styles.statusPill, isBlocked && styles.statusPillBlocked]}>
+          <View
+            style={[
+              styles.statusPill,
+              isBlocked && styles.statusPillBlocked,
+              isPending && styles.statusPillPending,
+            ]}
+          >
             {isBlocked ? (
               <IconXCircle size={14} color={C.risk.critical} />
+            ) : isPending ? (
+              <IconAlertTriangle size={14} color={C.risk.warn} />
             ) : (
               <IconCheckCircle size={14} color={C.risk.safe} />
             )}
-            <Text style={[styles.statusPillText, isBlocked && { color: C.risk.critical }]}>
-              {isBlocked ? 'BLOCKED BY AI SHIELD' : 'SETTLED & VERIFIED'}
+            <Text
+              style={[
+                styles.statusPillText,
+                isBlocked && { color: C.risk.critical },
+                isPending && { color: C.risk.warn },
+              ]}
+            >
+              {isBlocked
+                ? 'BLOCKED BY AI SHIELD'
+                : isPending
+                  ? 'AWAITING YOUR APPROVAL'
+                  : 'SETTLED & VERIFIED'}
             </Text>
           </View>
 
-          <Text style={[styles.heroAmount, isBlocked && styles.heroAmountBlocked]}>
+          <Text
+            style={[
+              styles.heroAmount,
+              isBlocked && styles.heroAmountBlocked,
+            ]}
+          >
             -{formatPayGuardCurrency(safeTransfer.amount, safeTransfer.currencyCode)}
           </Text>
 
@@ -130,6 +187,52 @@ export default function TransactionDetailScreen() {
             {formatPayGuardDate(safeTransfer.initiatedAt)} at {formatPayGuardTime(safeTransfer.initiatedAt)}
           </Text>
         </View>
+
+        {/* CONSENT / HUMAN-IN-THE-LOOP */}
+        {isPending && (
+          <View style={styles.consentCard}>
+            <View style={styles.consentHeader}>
+              <IconShieldAlert size={16} color={C.risk.warn} />
+              <Text style={styles.consentTitle}>HUMAN-IN-THE-LOOP — HELD</Text>
+            </View>
+            <Text style={styles.consentBody}>
+              Risk {safeTransfer.riskAssessmentScore}/100. This payment is held and will
+              NOT reach the beneficiary until you approve it.
+            </Text>
+            <View style={styles.decisionRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.approveBtn,
+                  busy && styles.btnDisabled,
+                  pressed && styles.btnPressed,
+                ]}
+                onPress={() => void applyDecision('confirm')}
+                disabled={busy}
+                accessibilityRole="button"
+              >
+                {busy ? (
+                  <ActivityIndicator color={C.gray.black} size="small" />
+                ) : (
+                  <IconCheck size={16} color={C.gray.black} strokeWidth={2.5} />
+                )}
+                <Text style={styles.approveBtnText}>Confirm & Settle</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.blockNowBtn,
+                  busy && styles.btnDisabled,
+                  pressed && styles.btnPressed,
+                ]}
+                onPress={handleBlock}
+                disabled={busy}
+                accessibilityRole="button"
+              >
+                <IconXCircle size={16} color={C.risk.critical} />
+                <Text style={styles.blockNowBtnText}>Block</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* MULTI-MODEL AI RISK BREAKDOWN */}
         <View style={styles.breakdownCard}>
@@ -162,7 +265,7 @@ export default function TransactionDetailScreen() {
                     <View style={styles.scoreDivider} />
                     <View style={styles.scoreItem}>
                       <Text style={styles.scoreLabel}>Rule Engine</Text>
-                      <Text style={styles.scoreSubVal}>{isBlocked ? 'FLAGGED' : 'CLEARED'}</Text>
+                      <Text style={styles.scoreSubVal}>{isBlocked ? 'FLAGGED' : isPending ? 'HELD' : 'CLEARED'}</Text>
                     </View>
                   </>
                 )}
@@ -174,7 +277,9 @@ export default function TransactionDetailScreen() {
               {safeTransfer.riskExplanation
                 || (isBlocked
                   ? 'Critical risk anomaly. Compensating transaction automatically executed.'
-                  : 'Beneficiary bank route verified. Behavioral cadence matches account baseline.')}
+                  : isPending
+                    ? 'Saga paused at human-in-the-loop. Payment held — no authorize until you confirm or block.'
+                    : 'Beneficiary bank route verified. Behavioral cadence matches account baseline.')}
             </Text>
           </View>
         </View>
@@ -302,11 +407,80 @@ const styles = StyleSheet.create({
     backgroundColor: A.danger(0.08),
     borderColor: A.danger(0.3),
   },
+  statusPillPending: {
+    backgroundColor: A.warn(0.08),
+    borderColor: A.warn(0.3),
+  },
   statusPillText: {
     color: C.risk.safe,
     fontSize: 10,
     fontWeight: 'bold',
     letterSpacing: 0.5,
+  },
+  consentCard: {
+    backgroundColor: A.warn(0.04),
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: A.warn(0.3),
+    marginBottom: 20,
+  },
+  consentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  consentTitle: {
+    color: C.risk.warn,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  consentBody: {
+    color: C.gray[300],
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  decisionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  approveBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.risk.safe,
+    paddingVertical: 13,
+    borderRadius: 14,
+    gap: 8,
+  },
+  approveBtnText: {
+    color: C.gray.black,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  blockNowBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: A.danger(0.08),
+    paddingVertical: 13,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: A.danger(0.3),
+    gap: 8,
+  },
+  blockNowBtnText: {
+    color: C.risk.critical,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  btnDisabled: {
+    opacity: 0.5,
   },
   heroAmount: {
     color: C.gray.white,
