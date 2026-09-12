@@ -28,15 +28,23 @@ import {
   IconRadio,
 } from '@/components/icons/PayGuardIcons';
 import { PayGuardColors as C, PayGuardAlpha as A, PayGuardMonoFont } from '@/constants/payGuardTheme';
-import { PayGuardNetworkClient } from '@/services/PayGuardNetworkClient';
+import { PayGuardNetworkClient, extractApiError } from '@/services/PayGuardNetworkClient';
 import { usePayGuardThreats } from '@/store/threatIntelligenceStore';
 
 interface ScanResult {
   receiverName: string;
   receiverAccount: string;
   riskScore: number;
+  riskLevel: string;
   status: 'SAFE' | 'FRAUDSTER';
+  flags: string[];
   reason: string;
+  recipientId: string | null;
+}
+
+interface AttemptResult {
+  status: string;
+  message: string;
 }
 
 export default function PgScanScreen() {
@@ -47,8 +55,10 @@ export default function PgScanScreen() {
   const [amount, setAmount] = useState('50.00');
   const [torch, setTorch] = useState(false);
   const [scannedLock, setScannedLock] = useState(false);
+  const [attempting, setAttempting] = useState(false);
+  const [attemptResult, setAttemptResult] = useState<AttemptResult | null>(null);
 
-  const { addAlert, activeAlerts } = usePayGuardThreats();
+  const { activeAlerts } = usePayGuardThreats();
 
   // Animated laser line
   useEffect(() => {
@@ -60,57 +70,91 @@ export default function PgScanScreen() {
     ).start();
   }, [scanLine]);
 
-  // Handle scanning a QR code and sending report to Backend
-  const handleProcessQr = async (mockReceiver: {
-    name: string;
-    account: string;
-    type: 'SAFE' | 'FRAUDSTER';
-  }) => {
+  // Real pipeline: QR payload → backend signal scorer → real blacklist + saga.
+  const handleProcessQr = async (target: { name: string; account: string }) => {
     setAnalyzing(true);
     setScanResult(null);
+    setAttemptResult(null);
 
     try {
-      // 1. Send receiver report to Backend API for deep multi-model inspection
-      const backendResponse = await PayGuardNetworkClient.assessRisk({
-        beneficiaryName: mockReceiver.name,
-        amount: parseFloat(amount) || 50,
-      }).catch(() => null);
+      const signal = await PayGuardNetworkClient.captureSignal({
+        sender: 'QR SCAN',
+        body: target.account,
+        channel: 'qr',
+      });
 
-      // 2. Evaluate Backend decision or fallback based on receiver threat payload
       const isFraudster =
-        mockReceiver.type === 'FRAUDSTER' ||
-        backendResponse?.decision === 'BLOCK' ||
-        (backendResponse?.riskScore ?? 0) >= 80;
+        signal.action === 'reject' ||
+        signal.riskLevel === 'CRITICAL' ||
+        signal.riskLevel === 'HIGH';
 
-      const result: ScanResult = {
-        receiverName: mockReceiver.name,
-        receiverAccount: mockReceiver.account,
-        riskScore: backendResponse?.riskScore ?? (isFraudster ? 96 : 8),
-        status: isFraudster ? 'FRAUDSTER' : 'SAFE',
-        reason: isFraudster
-          ? backendResponse?.explanation ??
-            'Backend AI detected synthetic identity anomaly and high-velocity diversion signatures.'
-          : 'Backend AI verified receiver identity against global trust directories.',
-      };
-
-      setScanResult(result);
-
-      // 3. If fraudster, auto-block receiver and record alert in local store
-      if (isFraudster) {
-        addAlert({
-          alertId: `alert-${Date.now()}`,
-          threatLevel: 'CRITICAL',
-          threatCategory: 'FRAUD_RING_DETECTED',
-          description: `Fraudster ${mockReceiver.name} (${mockReceiver.account}) intercepted & automatically blocked by PayGuard.`,
-          requiresAction: false,
-          issuedAt: new Date().toISOString(),
-          isBlocked: true,
-        });
+      let recipientId: string | null = null;
+      if (target.account.startsWith('upi://pay') && isFraudster) {
+        let payee = target.name;
+        try {
+          const pa = target.account.split('pa=')[1]?.split('&')[0];
+          if (pa) payee = decodeURIComponent(pa);
+        } catch {
+          // reuse name
+        }
+        try {
+          const rec = await PayGuardNetworkClient.createRecipient({
+            name: target.name,
+            accountNumber: payee,
+            riskHint: 'critical',
+          });
+          recipientId = rec.id;
+        } catch {
+          const bens = await PayGuardNetworkClient.fetchBeneficiaries().catch(() => []);
+          recipientId =
+            bens.find((b) => b.accountNumber === payee || b.name === target.name)?.beneficiaryId ??
+            null;
+        }
       }
+
+      setScanResult({
+        receiverName: target.name,
+        receiverAccount: target.account,
+        riskScore: signal.riskScore,
+        riskLevel: signal.riskLevel,
+        status: isFraudster ? 'FRAUDSTER' : 'SAFE',
+        flags: signal.flags,
+        reason: signal.flags.length
+          ? `Flagged: ${signal.flags.join(', ')}`
+          : 'No hard fraud signals detected.',
+        recipientId,
+      });
     } catch (err) {
       console.error('Scan analysis error:', err);
+      Alert.alert('Scan failed', 'Shield unreachable. Is the PayGuard backend running?');
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const runSagaPayment = async (): Promise<AttemptResult> => {
+    const { transfer, risk } = await PayGuardNetworkClient.initiateSecureTransfer({
+      beneficiaryId: scanResult?.recipientId ?? '',
+      beneficiaryName: scanResult?.receiverName ?? 'Unknown',
+      amount: parseFloat(amount) || 50,
+      currencyCode: 'INR',
+      note: 'QR scan payment',
+    });
+    return {
+      status: transfer.transferStatus,
+      message: `${transfer.transferStatus.toUpperCase()} · score ${risk.riskScore}/100 · ${risk.decision}`,
+    };
+  };
+
+  const handlePaymentAttempt = async () => {
+    setAttempting(true);
+    setAttemptResult(null);
+    try {
+      setAttemptResult(await runSagaPayment());
+    } catch (e) {
+      setAttemptResult({ status: 'FAILED', message: extractApiError(e) });
+    } finally {
+      setAttempting(false);
     }
   };
 
@@ -120,32 +164,19 @@ export default function PgScanScreen() {
     setScannedLock(true);
 
     let parsedName = 'Live Scanned Entity';
-    let parsedAccount = data;
-    let detectedType: 'SAFE' | 'FRAUDSTER' = 'SAFE';
-
-    // Heuristic scan detection for UPI / PayGuard schemes
-    if (data.toLowerCase().includes('fraud') || data.toLowerCase().includes('scam') || data.toLowerCase().includes('phish') || data.toLowerCase().includes('lottery')) {
-      detectedType = 'FRAUDSTER';
-      parsedName = 'High-Risk Rogue Node';
-    } else {
+    if (data.startsWith('upi://') || data.startsWith('payguard://')) {
       try {
-        if (data.startsWith('upi://') || data.startsWith('payguard://')) {
-          const url = new URL(data.replace('upi://', 'https://dummy.com/').replace('payguard://', 'https://dummy.com/'));
-          const pn = url.searchParams.get('pn');
-          const pa = url.searchParams.get('pa');
-          if (pn) parsedName = decodeURIComponent(pn);
-          if (pa) parsedAccount = decodeURIComponent(pa);
-        }
+        const url = new URL(
+          data.replace('upi://', 'https://dummy.com/').replace('payguard://', 'https://dummy.com/')
+        );
+        const pn = url.searchParams.get('pn');
+        if (pn) parsedName = decodeURIComponent(pn);
       } catch {
         // use raw text
       }
     }
 
-    handleProcessQr({
-      name: parsedName,
-      account: parsedAccount,
-      type: detectedType,
-    });
+    handleProcessQr({ name: parsedName, account: data });
   };
 
   return (
@@ -247,7 +278,6 @@ export default function PgScanScreen() {
                   handleProcessQr({
                     name: 'Cyber Roast Labs',
                     account: 'upi://pay?pa=cyberroast@okaxis',
-                    type: 'SAFE',
                   })
                 }
                 accessibilityRole="button"
@@ -260,9 +290,9 @@ export default function PgScanScreen() {
                 style={({ pressed }) => [styles.testBtnDanger, pressed && styles.btnPressed]}
                 onPress={() =>
                   handleProcessQr({
-                    name: 'Unknown Fraudster Node',
-                    account: 'upi://pay?pa=fake.invoice.desk@scam',
-                    type: 'FRAUDSTER',
+                    name: 'Invoice Desk LLC',
+                    account:
+                      'upi://pay?pa=fake.invoice.desk@okhdfcbank&pn=Invoice%20Desk%20LLC&am=75000&tn=Rent%20for%20September',
                   })
                 }
                 accessibilityRole="button"
@@ -293,7 +323,9 @@ export default function PgScanScreen() {
                 <IconCheck size={24} color="#000000" strokeWidth={2.5} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.safeBadge}>RECEIVER VERIFIED · SAFE</Text>
+                <Text style={styles.safeBadge}>
+                  PAYMENT ALLOWED · {scanResult.riskLevel}
+                </Text>
                 <Text style={styles.safeName}>{scanResult.receiverName}</Text>
                 <Text style={styles.safeAccount}>{scanResult.receiverAccount}</Text>
               </View>
@@ -305,7 +337,7 @@ export default function PgScanScreen() {
             </View>
 
             <View style={styles.amountInputBlock}>
-              <Text style={styles.amountLabel}>AMOUNT TO PAY ($)</Text>
+              <Text style={styles.amountLabel}>AMOUNT TO PAY (₹)</Text>
               <TextInput
                 style={styles.amountInput}
                 value={amount}
@@ -317,20 +349,27 @@ export default function PgScanScreen() {
             </View>
 
             <Pressable
-              style={({ pressed }) => [styles.payNowBtn, pressed && styles.btnPressed]}
-              onPress={() => {
-                Alert.alert(
-                  'Transfer Completed',
-                  `Payment of $${amount} successfully transferred to ${scanResult.receiverName}. AI Saga ledger updated.`
-                );
-                setScanResult(null);
-                setScannedLock(false);
-              }}
+              style={({ pressed }) => [
+                styles.payNowBtn,
+                attempting && styles.btnPressed,
+                pressed && styles.btnPressed,
+              ]}
+              onPress={handlePaymentAttempt}
+              disabled={attempting}
               accessibilityRole="button"
             >
-              <Text style={styles.payNowText}>Authorize & Pay</Text>
+              <Text style={styles.payNowText}>
+                {attempting ? 'RUNNING SAGA...' : 'Authorize & Pay'}
+              </Text>
               <IconArrowRight size={18} color="#000000" strokeWidth={2.4} />
             </Pressable>
+
+            {attemptResult && (
+              <View style={styles.heldResultBox}>
+                <Text style={styles.heldResultStatus}>{attemptResult.status.toUpperCase()}</Text>
+                <Text style={styles.heldResultText}>{attemptResult.message}</Text>
+              </View>
+            )}
 
             <Pressable
               style={styles.cancelBtn}
@@ -375,6 +414,29 @@ export default function PgScanScreen() {
             </View>
 
             <Pressable
+              style={({ pressed }) => [
+                styles.attemptBtn,
+                attempting && styles.btnPressed,
+                pressed && styles.btnPressed,
+              ]}
+              onPress={handlePaymentAttempt}
+              disabled={attempting}
+              accessibilityRole="button"
+            >
+              <IconZap size={14} color="#000000" />
+              <Text style={styles.attemptBtnText}>
+                {attempting ? 'RUNNING SAGA...' : 'DEMONSTRATE PAYMENT ATTEMPT'}
+              </Text>
+            </Pressable>
+
+            {attemptResult && (
+              <View style={styles.heldResultBox}>
+                <Text style={styles.heldResultStatus}>{attemptResult.status.toUpperCase()}</Text>
+                <Text style={styles.heldResultText}>{attemptResult.message}</Text>
+              </View>
+            )}
+
+            <Pressable
               style={({ pressed }) => [styles.dismissBtn, pressed && styles.btnPressed]}
               onPress={() => {
                 setScanResult(null);
@@ -394,6 +456,14 @@ export default function PgScanScreen() {
         >
           <IconRadio size={16} color="#000000" />
           <Text style={styles.signalLabBtnText}>Open Signal Lab (SMS Capture)</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.caseStudyBtn, pressed && styles.btnPressed]}
+          onPress={() => router.push('/secure-transfer/pg-case-study')}
+          accessibilityRole="button"
+        >
+          <IconShieldAlert size={16} color={C.risk.critical} />
+          <Text style={styles.caseStudyBtnText}>Run Guided Case Study</Text>
         </Pressable>
 
         {/* ALERTS FEED */}
@@ -755,6 +825,45 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
+  // SAGA PAYMENT ATTEMPT RESULT
+  attemptBtn: {
+    flexDirection: 'row',
+    backgroundColor: C.gray.white,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    marginBottom: 12,
+  },
+  attemptBtnText: {
+    color: C.gray.black,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  heldResultBox: {
+    width: '100%',
+    backgroundColor: C.gray[950],
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: A.white(0.12),
+    marginBottom: 12,
+  },
+  heldResultStatus: {
+    color: C.gray.white,
+    fontSize: 12,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  heldResultText: {
+    color: C.gray[400],
+    fontSize: 11,
+    lineHeight: 16,
+  },
+
   // FRAUDSTER CARD
   fraudCard: {
     width: '100%',
@@ -869,6 +978,23 @@ const styles = StyleSheet.create({
   },
   signalLabBtnText: {
     color: C.gray.black,
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  caseStudyBtn: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: A.danger(0.4),
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    marginTop: 10,
+  },
+  caseStudyBtnText: {
+    color: C.risk.critical,
     fontSize: 13,
     fontWeight: 'bold',
   },
