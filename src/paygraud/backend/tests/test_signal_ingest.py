@@ -45,10 +45,24 @@ def test_unknown_link_below_phishy_path_is_medium_or_high():
     assert "unverified_link" in r.flags
 
 
-# ---------- API smoke (mocked DB-free / httpx) ----------
+# ---------- API smoke (requires live Postgres + Redis) ----------
 
 @pytest.mark.asyncio
 async def test_signals_sms_smoke():
+    """End-to-end signal ingest via API — auto-skipped when Postgres is unavailable."""
+    import asyncpg  # noqa: PLC0415
+    import os
+
+    db_url = os.getenv("DATABASE_URL", "postgresql+asyncpg://payguard:payguard@localhost:5433/payguard")
+    # parse host:port from the URL
+    after_at = db_url.split("@")[1].split("/")[0]
+    db_host, _, db_port_str = after_at.partition(":")
+    db_port = int(db_port_str) if db_port_str else 5432
+    try:
+        conn = await asyncpg.connect(host=db_host, port=db_port, user="payguard", password="payguard", database="payguard", timeout=2)
+        await conn.close()
+    except Exception:
+        pytest.skip("Postgres not available — skipping DB-dependent integration test")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await client.post("/api/v1/auth/register", json={"email":"sig@test.dev","password":"Passw0rd!","full_name":"Sig"})
         tok = await client.post("/api/v1/auth/login", data={"username":"sig@test.dev","password":"Passw0rd!"})

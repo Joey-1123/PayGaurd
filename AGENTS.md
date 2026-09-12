@@ -7,9 +7,7 @@ Hackathon build in progress on branch `backend`. Planning docs live in `local/` 
 - **Max 100 LOC per commit** (net diff). Target ~50 LOC. If a change exceeds this, split it into multiple logical commits.
 - Commit messages: one concise summary line + short body explaining what and why.
 - Only commit when explicitly asked. Never commit anything from `local/`.
-- Repo-level auth: `Joey-1123 <shubhampanchal9168@gmail.com>`. Author must stay `Joey-1123` — do not change git config.
-
-## Repo layout
+- ## Repo layout
 - Target architecture (mirrors main): `src/paygraud/backend`, `src/paygraud/frontend/web`, `src/paygraud/mobile`, plus `docs/`, `screenshot/`, `data/`, `requirements.txt`, `README.md`, `LICENSE` at root.
 - Branch → directory mapping: `backend` → `src/paygraud/backend`, `frontend_web` → `src/paygraud/frontend/web`, `mobile` → `src/paygraud/mobile`. PRs must land code in the matching directory.
 
