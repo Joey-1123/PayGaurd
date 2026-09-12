@@ -27,9 +27,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-3-5-sonnet-20241022"
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "groq/compound"
     openrouter_api_key: str = ""
-    openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    openrouter_model: str = "nex-agi/nex-n2.5-pro:free"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
 
